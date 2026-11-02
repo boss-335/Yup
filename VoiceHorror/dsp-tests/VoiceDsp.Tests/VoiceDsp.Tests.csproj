@@ -12,6 +12,10 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Pure-C# Arabic shaping helper used by the game UI (no UnityEngine dependency). -->
+    <Compile Include="../../Assets/_Project/Scripts/UI/Text/ArabicShaper.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../VoiceDsp/VoiceDsp.csproj" />
   </ItemGroup>
 </Project>

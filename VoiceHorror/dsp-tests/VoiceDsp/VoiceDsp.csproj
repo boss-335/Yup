@@ -12,7 +12,5 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Assets/VoiceDsp/**/*.cs" />
-    <!-- Pure-C# Arabic shaping helper used by the UI; has no UnityEngine dependency. -->
-    <Compile Include="../../Assets/_Project/Scripts/UI/Text/ArabicShaper.cs" />
   </ItemGroup>
 </Project>
