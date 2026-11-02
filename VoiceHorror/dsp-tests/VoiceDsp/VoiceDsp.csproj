@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Compiles the exact sources Unity uses (Assets/VoiceDsp) against netstandard2.1
+       with Unity's C# language level, so anything that builds here builds in Unity. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>VoiceDsp</AssemblyName>
+    <RootNamespace>VoiceHorror.Dsp</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/VoiceDsp/**/*.cs" />
+    <!-- Pure-C# Arabic shaping helper used by the UI; has no UnityEngine dependency. -->
+    <Compile Include="../../Assets/_Project/Scripts/UI/Text/ArabicShaper.cs" />
+  </ItemGroup>
+</Project>

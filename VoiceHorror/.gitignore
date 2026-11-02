@@ -1,0 +1,33 @@
+# Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+*.csproj
+!dsp-tests/**/*.csproj
+*.sln
+!dsp-tests/*.sln
+*.suo
+*.user
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+.vs/
+.idea/
+.vscode/
+crashlytics-build.properties
+sysinfo.txt
+
+# dotnet test project
+dsp-tests/**/bin/
+dsp-tests/**/obj/
+dsp-tests/**/TestResults/
