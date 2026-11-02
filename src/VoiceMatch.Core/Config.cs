@@ -68,7 +68,7 @@ namespace VoiceMatch.Core
         public float MinDurationRatio { get; init; } = 0.7f;
 
         /// <summary>
-        /// Deviation from the plain linear formula in GDD §6.5 (see docs/m0-report.md):
+        /// Approved deviation from the plain linear formula in GDD §6.5 (docs/m0-report.md §3.1):
         /// accuracy = wp·pitch + pitch·(wr·rhythm + wc·coverage).
         /// </summary>
         public bool PitchGatesOthers { get; init; } = true;

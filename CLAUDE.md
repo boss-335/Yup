@@ -1,6 +1,8 @@
 # CLAUDE.md — Voice Battle
 
-Read `docs/voice-battle-gdd.md` (Arabic) §0 first: it is the binding spec. `docs/m0-report.md` records what was built and every place the implementation deviates from the GDD, with reasons.
+Read `docs/voice-battle-gdd.md` (Arabic) §0 first: it is the binding spec. `docs/m0-report.md` records what was built and every place the implementation deviates from the GDD, with reasons. Those deviations (§3) were approved by the owner on 2026-11-02 — treat them as part of the spec.
+
+`legacy/` holds an unrelated 2016 Cordova project kept only for history; ignore it.
 
 ## Status
 - **M0 (match engine) — implemented, validated on synthetic voices only.** All four acceptance criteria pass on the synthetic benchmark. M0 is closed only after the same benchmark passes on real recordings (`eval --manifest`, see README §4).
