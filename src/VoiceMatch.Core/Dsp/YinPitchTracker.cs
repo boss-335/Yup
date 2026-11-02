@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace VoiceMatch.Core.Dsp
 {
@@ -35,6 +37,8 @@ namespace VoiceMatch.Core.Dsp
             var aRe = new double[fftSize]; var aIm = new double[fftSize];
             var xRe = new double[fftSize]; var xIm = new double[fftSize]; // reused as the product spectrum
             var d = new double[tauMax + 2];
+            var aper = new double[tauMax + 2]; // energy-normalised difference d(τ)/(e0+eτ), unbiased across lags
+            var candidates = new List<(float midi, float cost)>?[count];
 
             for (int f = 0; f < count; f++)
             {
@@ -84,6 +88,7 @@ namespace VoiceMatch.Core.Dsp
                     double eTau = prefix[tau + w] - prefix[tau];
                     double v = e0 + eTau - 2 * xRe[tau];
                     d[tau] = v < 0 ? 0 : v;
+                    aper[tau] = d[tau] / Math.Max(1e-12, e0 + eTau);
                 }
 
                 // Cumulative mean normalised difference, d'(τ).
@@ -109,31 +114,116 @@ namespace VoiceMatch.Core.Dsp
                 bool voiced = best > 0;
                 if (!voiced)
                 {
-                    best = tauMin;
-                    for (int tau = tauMin + 1; tau <= tauMax; tau++) if (d[tau] < d[best]) best = tau;
+                    // Noisy frame: the global minimum often sits at 2× or 3× the true period (octave-down
+                    // error). Take the first local minimum that is nearly as deep as the global one.
+                    int global = tauMin;
+                    for (int tau = tauMin + 1; tau <= tauMax; tau++) if (d[tau] < d[global]) global = tau;
+                    best = global;
+                    double accept = d[global] + _cfg.YinFallbackMargin;
+                    for (int tau = tauMin + 1; tau < global; tau++)
+                    {
+                        if (d[tau] <= accept && d[tau] <= d[tau - 1] && d[tau] <= d[tau + 1]) { best = tau; break; }
+                    }
                     voiced = d[best] < _cfg.YinFallbackThreshold;
                 }
 
-                double refined = best;
-                if (best > 1 && best < tauMax + 1)
+                float conf = (float)Math.Max(0, Math.Min(1, 1 - d[best]));
+                if (!voiced)
                 {
-                    double s0 = d[best - 1], s1 = d[best], s2 = d[best + 1];
-                    double denom = s0 - 2 * s1 + s2;
-                    if (Math.Abs(denom) > 1e-12)
-                    {
-                        double delta = 0.5 * (s0 - s2) / denom;
-                        if (Math.Abs(delta) < 1) refined = best + delta;
-                    }
+                    frames[f] = new PitchFrame(time, 0f, float.NaN, conf, rmsDb, false);
+                    continue;
                 }
 
-                float conf = (float)Math.Max(0, Math.Min(1, 1 - d[best]));
-                float f0 = (float)(sampleRate / refined);
-                frames[f] = voiced
-                    ? new PitchFrame(time, f0, MathUtil.HzToMidi(f0), conf, rmsDb, true)
-                    : new PitchFrame(time, 0f, float.NaN, conf, rmsDb, false);
+                // Keep the octave neighbours of YIN's pick (period ×2 and ×½) as alternatives for the
+                // temporal smoothing pass. Only octaves: allowing ×3, ×4… lets the smoother "explain"
+                // a melody with one common sub-harmonic instead of following the notes.
+                var list = new List<(float midi, float cost)>(3);
+                list.Add((MidiAt(d, best, tauMax, sampleRate), (float)aper[best]));
+                double limit = d[best] + _cfg.PitchCandidateMargin;
+                foreach (int target in new[] { 2 * best, best / 2 })
+                {
+                    int lo = Math.Max(tauMin, (int)(target * 0.97)), hi = Math.Min(tauMax - 1, (int)Math.Ceiling(target * 1.03));
+                    int bt = -1;
+                    for (int tau = Math.Max(lo, tauMin + 1); tau <= hi; tau++)
+                        if (d[tau] <= d[tau - 1] && d[tau] <= d[tau + 1] && (bt < 0 || d[tau] < d[bt])) bt = tau;
+                    // Candidates are compared on d(τ)/(e0+eτ): unlike d'(τ), which the cumulative mean makes
+                    // systematically lower at 2τ, it does not favour longer periods. Alternatives also carry a
+                    // small penalty so ties keep YIN's own pick.
+                    if (bt > 0 && d[bt] <= limit) list.Add((MidiAt(d, bt, tauMax, sampleRate), (float)aper[bt] + _cfg.PitchAlternativePenalty));
+                }
+                candidates[f] = list;
+
+                float midi0 = list[0].midi;
+                frames[f] = new PitchFrame(time, MathUtil.MidiToHz(midi0), midi0, conf, rmsDb, true);
             }
 
+            if (_cfg.PitchSmoothingPerSemitone > 0) Smooth(frames, candidates, _cfg.PitchSmoothingPerSemitone);
             return frames;
+        }
+
+        /// <summary>Parabolic-interpolated pitch (MIDI) of the d' minimum at <paramref name="tau"/>.</summary>
+        private static float MidiAt(double[] d, int tau, int tauMax, int sampleRate)
+        {
+            double refined = tau;
+            if (tau > 1 && tau < tauMax + 1)
+            {
+                double s0 = d[tau - 1], s1 = d[tau], s2 = d[tau + 1];
+                double denom = s0 - 2 * s1 + s2;
+                if (Math.Abs(denom) > 1e-12)
+                {
+                    double delta = 0.5 * (s0 - s2) / denom;
+                    if (Math.Abs(delta) < 1) refined = tau + delta;
+                }
+            }
+            return MathUtil.HzToMidi((float)(sampleRate / refined));
+        }
+
+        /// <summary>
+        /// Viterbi over pitch candidates within each voiced run (the idea behind pYIN): choose the
+        /// sequence minimising Σ aperiodicity + λ·|Δ semitones|, so a note does not flip between octaves
+        /// frame to frame (weak fundamentals, clipping, strong formants).
+        /// </summary>
+        private static void Smooth(PitchFrame[] frames, List<(float midi, float cost)>?[] cand, float lambda)
+        {
+            int i = 0;
+            while (i < frames.Length)
+            {
+                if (cand[i] == null) { i++; continue; }
+                int j = i;
+                while (j < frames.Length && cand[j] != null) j++;
+                int n = j - i;
+                var acc = new float[n][];
+                var back = new int[n][];
+                acc[0] = cand[i]!.Select(c => c.cost).ToArray();
+                back[0] = new int[acc[0].Length];
+                for (int k = 1; k < n; k++)
+                {
+                    var cur = cand[i + k]!; var prev = cand[i + k - 1]!;
+                    acc[k] = new float[cur.Count];
+                    back[k] = new int[cur.Count];
+                    for (int a = 0; a < cur.Count; a++)
+                    {
+                        float bestV = float.PositiveInfinity; int bestP = 0;
+                        for (int p = 0; p < prev.Count; p++)
+                        {
+                            float jump = Math.Abs(cur[a].midi - prev[p].midi);
+                            float v = acc[k - 1][p] + lambda * (jump < 0.5f ? 0 : jump);
+                            if (v < bestV) { bestV = v; bestP = p; }
+                        }
+                        acc[k][a] = bestV + cur[a].cost;
+                        back[k][a] = bestP;
+                    }
+                }
+                int sel = Array.IndexOf(acc[n - 1], acc[n - 1].Min());
+                for (int k = n - 1; k >= 0; k--)
+                {
+                    var f = frames[i + k];
+                    float m = cand[i + k]![sel].midi;
+                    frames[i + k] = f with { Midi = m, F0Hz = MathUtil.MidiToHz(m) };
+                    sel = back[k][sel];
+                }
+                i = j;
+            }
         }
     }
 }

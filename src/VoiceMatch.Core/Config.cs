@@ -25,6 +25,18 @@ namespace VoiceMatch.Core
         /// (noisy frames). Set equal to YinThreshold to disable.
         /// </summary>
         public float YinFallbackThreshold { get; init; } = 0.35f;
+
+        /// <summary>In the fallback, an earlier local minimum within this margin of the global one wins (octave guard).</summary>
+        public float YinFallbackMargin { get; init; } = 0.1f;
+
+        /// <summary>Viterbi jump cost per semitone between frames (0 disables smoothing).</summary>
+        public float PitchSmoothingPerSemitone { get; init; } = 0.04f;
+
+        /// <summary>Other d' minima within this margin of the chosen one are kept as candidates.</summary>
+        public float PitchCandidateMargin { get; init; } = 0.3f;
+
+        /// <summary>Per-frame cost of choosing an octave alternative over YIN's own pick (the first dip).</summary>
+        public float PitchAlternativePenalty { get; init; } = 0.02f;
         public float YinThreshold { get; init; } = 0.15f;
         public int MedianWindow { get; init; } = 5;
         public float MinF0Hz { get; init; } = 65f;
@@ -85,6 +97,9 @@ namespace VoiceMatch.Core
 
         /// <summary>Both voiced contours are resampled to this many points before DTW.</summary>
         public int ResampleLength { get; init; } = 256;
+
+        /// <summary>Range (± cents) searched for the starting key offset before DTW; 0 disables the scan.</summary>
+        public float KeySearchCents { get; init; } = 0f;
 
         /// <summary>
         /// Fastest allowed speed-up. The duration gate (attempt shorter than MinDurationRatio of
@@ -168,7 +183,11 @@ namespace VoiceMatch.Core
             if (root.TryGetProperty("rhythm", out var rh))
                 m = m with { RhythmTolerance = GetFloat(rh, "tolerance", m.RhythmTolerance) };
 
-            m = m with { ResampleLength = GetInt(root, "dtw_points", m.ResampleLength) };
+            m = m with
+            {
+                ResampleLength = GetInt(root, "dtw_points", m.ResampleLength),
+                KeySearchCents = GetFloat(root, "key_search_cents", m.KeySearchCents),
+            };
 
             if (root.TryGetProperty("analysis", out var a))
             {
@@ -178,6 +197,10 @@ namespace VoiceMatch.Core
                     AnalysisRate = GetInt(a, "analysis_rate", c.AnalysisRate),
                     PitchLowpassHz = GetFloat(a, "pitch_lowpass_hz", c.PitchLowpassHz),
                     YinFallbackThreshold = GetFloat(a, "yin_fallback_threshold", c.YinFallbackThreshold),
+                    YinFallbackMargin = GetFloat(a, "yin_fallback_margin", c.YinFallbackMargin),
+                    PitchSmoothingPerSemitone = GetFloat(a, "pitch_smoothing_per_semitone", c.PitchSmoothingPerSemitone),
+                    PitchCandidateMargin = GetFloat(a, "pitch_candidate_margin", c.PitchCandidateMargin),
+                    PitchAlternativePenalty = GetFloat(a, "pitch_alternative_penalty", c.PitchAlternativePenalty),
                     MaxF0Hz = GetFloat(a, "max_f0_hz", c.MaxF0Hz),
                     GateDb = GetFloat(a, "gate_db", c.GateDb),
                     TargetRmsDb = GetFloat(a, "target_rms_db", c.TargetRmsDb),

@@ -69,6 +69,8 @@ dotnet run --project tools/matcher-lab -- <command>
 | `synth --midi ref.mid --out take.wav --performer man --kind hum` | يولّد "مغنّي" صناعي للتجربة |
 | `eval` | اختبار القبول على أصوات صناعية |
 | `eval --manifest recordings/takes.csv` | **نفس الاختبار على تسجيلات حقيقية** (انظر القسم 4) |
+| `gen-takes --out recordings/humanized` | يولّد 240 أداء أصعب (حروف ساكنة، ضجيج، صدى، قص…) + `takes.csv` |
+| `analyze take.wav --frames` | يطبع مخرجات YIN الخام إطاراً بإطار (لتشخيص أخطاء الطبقة) |
 
 سجّل نفسك بأي برنامج (Audacity مثلاً) واحفظ WAV، ثم:
 ```bash

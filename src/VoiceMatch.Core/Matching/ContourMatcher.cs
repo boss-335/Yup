@@ -41,7 +41,10 @@ namespace VoiceMatch.Core.Matching
 
             float free = cfg.PitchFreeCents, span = cfg.PitchMaxCents - cfg.PitchFreeCents;
             float best = float.PositiveInfinity;
-            float offset = 0f;
+            // Optional un-warped scan for the starting key offset (key_search_cents). Off by default: the
+            // range-midpoint key centre already handles tunes held differently, and a wide scan also lets
+            // different melodies line up (see docs/m0-report.md §7).
+            float offset = InitialOffset(r, a, free, span, cfg.KeySearchCents);
             for (int iter = 0; iter < 3; iter++)
             {
                 float off = offset;
@@ -58,6 +61,21 @@ namespace VoiceMatch.Core.Matching
                 offset = newOffset;
             }
             return MathUtil.Clamp01(1f - best);
+        }
+
+        internal static float InitialOffset(float[] r, float[] a, float free, float span, float range)
+        {
+            if (range <= 0) return 0f;
+            float bestOff = 0f, bestCost = float.PositiveInfinity;
+            for (float off = -range; off <= range + 0.1f; off += 25f)
+            {
+                float c = 0;
+                for (int i = 0; i < r.Length; i++) c += MathUtil.Clamp01((Math.Abs(a[i] - off - r[i]) - free) / span);
+                // Prefer the smaller shift on ties (the median-centred alignment is usually right).
+                c += Math.Abs(off) * 1e-4f;
+                if (c < bestCost) { bestCost = c; bestOff = off; }
+            }
+            return bestOff;
         }
 
         /// <summary>F-measure of onsets matched on a duration-normalised time axis, with graded credit.</summary>

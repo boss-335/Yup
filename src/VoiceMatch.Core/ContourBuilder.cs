@@ -97,9 +97,18 @@ namespace VoiceMatch.Core
             var vals = new float[midi.Length];
             int c = 0;
             for (int i = 0; i < midi.Length; i++) if (voiced[i]) vals[c++] = midi[i];
-            float med = MathUtil.Median(vals, c);
+            // Key centre = middle of the sung range (10th–90th percentile), not the median: the median
+            // moves to whichever note is held longest, so the same tune held differently would shift.
+            float centre = float.NaN;
+            if (c > 0)
+            {
+                var sorted = new float[c];
+                Array.Copy(vals, sorted, c);
+                Array.Sort(sorted);
+                centre = 0.5f * (sorted[(int)(0.1 * (c - 1))] + sorted[(int)(0.9 * (c - 1))]);
+            }
             var cents = new float[midi.Length];
-            for (int i = 0; i < midi.Length; i++) cents[i] = voiced[i] ? (midi[i] - med) * 100f : 0f;
+            for (int i = 0; i < midi.Length; i++) cents[i] = voiced[i] ? (midi[i] - centre) * 100f : 0f;
             return cents;
         }
 

@@ -12,7 +12,7 @@ namespace MatcherLab;
 /// <summary>M0 acceptance benchmark (GDD §11): separation AUC, man/woman consistency, latency.</summary>
 public static class Benchmark
 {
-    public sealed record Take(string Melody, string Kind, string Group, MatchResult Result);
+    public sealed record Take(string Melody, string Kind, string Group, MatchResult Result, string File = "");
 
     public static int Run(Args o, VoiceMatchSettings s)
     {
@@ -21,8 +21,8 @@ public static class Benchmark
         var latency = MeasureLatency(s);
         string source = o.Has("manifest") ? $"real recordings ({o.Get("manifest")})" : "SYNTHETIC voices (VoiceSynth) — not a substitute for real singers";
         if (o.Get("dump") is { } dump)
-            File.WriteAllLines(dump, new[] { "melody,kind,group,accuracy,pitch,rhythm,coverage,tempo,reject" }.Concat(takes.Select(t =>
-                $"{t.Melody},{t.Kind},{t.Group},{t.Result.Accuracy:F3},{t.Result.PitchScore:F3},{t.Result.RhythmScore:F3},{t.Result.Coverage:F3},{t.Result.TempoRatio:F2},{t.Result.RejectReason}")));
+            File.WriteAllLines(dump, new[] { "melody,kind,group,accuracy,pitch,rhythm,coverage,tempo,reject,file" }.Concat(takes.Select(t =>
+                $"{t.Melody},{t.Kind},{t.Group},{t.Result.Accuracy:F3},{t.Result.PitchScore:F3},{t.Result.RhythmScore:F3},{t.Result.Coverage:F3},{t.Result.TempoRatio:F2},{t.Result.RejectReason},{t.File}")));
         string report = BuildReport(source, takes, pairDiffs, latency, s);
         Console.WriteLine(report);
         if (o.Get("report") is { } path) { File.WriteAllText(path, report); Console.Error.WriteLine($"report written to {path}"); }
@@ -112,7 +112,7 @@ public static class Benchmark
             string refPath = Path.Combine(baseDir, c[0]);
             if (!refCache.TryGetValue(refPath, out var refC)) refCache[refPath] = refC = Program.LoadContour(refPath, s.Contour);
             var att = Program.LoadContour(Path.Combine(baseDir, c[1]), s.Contour);
-            takes.Add(new Take(Path.GetFileNameWithoutExtension(c[0]), c[2].ToLowerInvariant(), c[3].ToLowerInvariant(), matcher.Match(refC, att, s.Match)));
+            takes.Add(new Take(Path.GetFileNameWithoutExtension(c[0]), c[2].ToLowerInvariant(), c[3].ToLowerInvariant(), matcher.Match(refC, att, s.Match), c[1]));
         }
         return takes;
     }

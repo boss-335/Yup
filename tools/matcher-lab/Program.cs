@@ -13,13 +13,16 @@ public static class Program
     private const string Usage = @"matcher-lab — VoiceMatch.Core M0 workbench
 
   match     --ref <ref.wav|ref.mid> --try <attempt.wav> [--max-speed 1.6] [--json]
-  analyze   <take.wav|ref.mid>                       print the contour summary
+  analyze   <take.wav|ref.mid> [--frames]            print the contour summary (--frames: raw YIN per frame)
   make-midi [--all | <melody.json> <out.mid>]        build reference .mid from data/melodies
   synth     --midi <ref.mid> --out <take.wav> [--performer man|woman|child]
             [--kind correct|hum|offkey] [--seed N] [--speed 1.0]
             [--transpose <+/- semitones>] [--fundamental <gain>]
+            [--human] [--rate 48000]   (--human: consonants, noise, reverb… see HumanVoice)
   eval      [--performers 10] [--report <file.md>] [--dump <takes.csv>]  synthetic M0 benchmark (GDD §11)
   eval      --manifest <takes.csv> [--report <file.md>]  same metrics on real recordings
+  gen-takes --out <dir> [--performers 10]          humanized synthetic take set + takes.csv
+                                                   (stand-in until real recordings exist)
 
 Common: --config <match_config.json>  (default: data/match_config.json found upward from cwd)
 ";
@@ -39,6 +42,7 @@ Common: --config <match_config.json>  (default: data/match_config.json found upw
                 "make-midi" => MakeMidi(opts),
                 "synth" => Synth(opts),
                 "eval" => Benchmark.Run(opts, LoadSettings(opts)),
+                "gen-takes" => GenTakes(opts),
                 _ => Fail($"unknown command '{args[0]}'\n\n{Usage}"),
             };
         }
@@ -119,6 +123,17 @@ Common: --config <match_config.json>  (default: data/match_config.json found upw
     {
         var s = LoadSettings(o);
         string path = o.Positional.FirstOrDefault() ?? o.Require("in");
+        if (o.Has("frames") && path.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
+        {
+            // Raw YIN output on the same pre-processing ContourBuilder uses.
+            var cfg = s.Contour;
+            var x = VoiceMatch.Core.Dsp.AudioPrep.ResampleTo(WavFile.Read(path, out int rate), rate, cfg.AnalysisRate);
+            x = VoiceMatch.Core.Dsp.AudioPrep.Normalize(x, cfg.AnalysisRate, cfg.TargetRmsDb, cfg.MaxGainDb, out _);
+            if (cfg.PitchLowpassHz > 0) x = VoiceMatch.Core.Dsp.AudioPrep.LowPass(x, cfg.AnalysisRate, cfg.PitchLowpassHz);
+            foreach (var f in new VoiceMatch.Core.Dsp.YinPitchTracker(cfg).Track(x, cfg.AnalysisRate))
+                Console.WriteLine($"{f.TimeSec,6:F3}s  f0 {f.F0Hz,7:F1}  midi {f.Midi,6:F2}  conf {f.Confidence:F2}  {f.RmsDb,6:F1} dB  {(f.Voiced ? "V" : "-")}");
+            return 0;
+        }
         var c = LoadContour(path, s.Contour);
         Console.WriteLine($"{path}: {c.DurationMs} ms, {c.Length} frames ({c.FrameMs:F2} ms/frame), voiced {c.VoicedRatio:P0}" +
                           (float.IsNaN(c.LoudnessDb) ? "" : $", loudness {c.LoudnessDb:F1} dBFS") + (c.TooQuiet ? "  [TOO QUIET]" : ""));
@@ -156,6 +171,45 @@ Common: --config <match_config.json>  (default: data/match_config.json found upw
         return 0;
     }
 
+    private static int GenTakes(Args o)
+    {
+        string outDir = o.Require("out");
+        int performers = int.Parse(o.Get("performers") ?? "10");
+        Directory.CreateDirectory(outDir);
+        string melDir = DataPath("melodies") ?? throw new IOException("data/melodies not found");
+        string midiDir = DataPath("midi") ?? throw new IOException("data/midi not found");
+        var melodies = Directory.GetFiles(melDir, "*.json").OrderBy(x => x).Select(MelodyScore.Load).ToList();
+        var lines = new System.Collections.Concurrent.ConcurrentBag<string>();
+        var jobs = new List<(int mi, int p, TakeKind kind, bool different)>();
+        for (int mi = 0; mi < melodies.Count; mi++)
+            for (int p = 0; p < performers; p++)
+            {
+                jobs.Add((mi, p, TakeKind.Correct, false));
+                jobs.Add((mi, p, TakeKind.Hum, false));
+                jobs.Add((mi, p, TakeKind.OffKey, false));
+                jobs.Add((mi, p, TakeKind.Correct, true));
+            }
+        Parallel.ForEach(jobs, j =>
+        {
+            var who = j.p < performers * 4 / 10 ? Performer.Man : j.p < performers * 8 / 10 ? Performer.Woman : Performer.Child;
+            int seed = 50000 + 1000 * j.mi + 10 * j.p + (int)j.kind + (j.different ? 5 : 0);
+            int sung = j.different ? (j.mi + 1 + j.p % (melodies.Count - 1)) % melodies.Count : j.mi;
+            var style = HumanSimulator.Style(who, j.kind, seed);
+            int rate = (seed % 10) switch { 0 => 16000, 1 or 2 => 44100, _ => 48000 };
+            var audio = HumanVoice.Render(melodies[sung].Notes, style, rate, seed);
+            string kind = j.different ? "different" : j.kind.ToString().ToLowerInvariant();
+            string performer = $"p{j.p + 1:00}_{who.ToString().ToLowerInvariant()}";
+            string rel = Path.Combine(performer, $"{melodies[j.mi].Id}_{kind}.wav");
+            Directory.CreateDirectory(Path.Combine(outDir, performer));
+            WavFile.WritePcm16(Path.Combine(outDir, rel), audio, rate);
+            string refPath = Path.GetRelativePath(Path.GetFullPath(outDir), Path.Combine(midiDir, melodies[j.mi].Id + ".mid"));
+            lines.Add($"{refPath.Replace('\\', '/')},{rel.Replace('\\', '/')},{kind},{who.ToString().ToLowerInvariant()}");
+        });
+        File.WriteAllLines(Path.Combine(outDir, "takes.csv"), new[] { "ref,attempt,kind,group" }.Concat(lines.OrderBy(x => x)));
+        Console.WriteLine($"{jobs.Count} takes written to {outDir} (manifest: {Path.Combine(outDir, "takes.csv")})");
+        return 0;
+    }
+
     private static int Synth(Args o)
     {
         string midiPath = o.Require("midi"), outPath = o.Require("out");
@@ -167,9 +221,17 @@ Common: --config <match_config.json>  (default: data/match_config.json found upw
         if (o.Get("speed") is { } sp) style = style with { Speed = float.Parse(sp) };
         if (o.Get("transpose") is { } tr) style = style with { TransposeSemitones = style.TransposeSemitones + float.Parse(tr) };
         if (o.Get("fundamental") is { } fg) style = style with { FundamentalGain = float.Parse(fg) };
-        var audio = VoiceSynth.Render(notes, style, 48000, seed);
-        WavFile.WritePcm16(outPath, audio, 48000);
-        Console.WriteLine($"{outPath}: {audio.Length / 48000.0:F2} s, {who}/{kind}, transpose {style.TransposeSemitones:F1} st, speed {style.Speed:F2}×");
+        int rate = int.Parse(o.Get("rate") ?? "48000");
+        float[] audio;
+        if (o.Has("human"))
+        {
+            var human = HumanSimulator.Style(who, kind, seed);
+            audio = HumanVoice.Render(notes, human, rate, seed);
+            style = human.Voice;
+        }
+        else audio = VoiceSynth.Render(notes, style, rate, seed);
+        WavFile.WritePcm16(outPath, audio, rate);
+        Console.WriteLine($"{outPath}: {audio.Length / (double)rate:F2} s @ {rate} Hz, {who}/{kind}{(o.Has("human") ? " (humanized)" : "")}, transpose {style.TransposeSemitones:F1} st, speed {style.Speed:F2}×");
         return 0;
     }
 }

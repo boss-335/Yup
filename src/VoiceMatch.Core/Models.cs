@@ -19,7 +19,7 @@ namespace VoiceMatch.Core
 
     /// <summary>
     /// Key-invariant melody contour. One value per hop.
-    /// <see cref="RelativeCents"/> is pitch minus the median voiced pitch (0 for unvoiced frames).
+    /// <see cref="RelativeCents"/> is pitch minus the centre of the sung range (0 for unvoiced frames).
     /// <see cref="Onsets"/> are note-start times in seconds from the start of the contour.
     /// </summary>
     public sealed record Contour(float[] RelativeCents, bool[] Voiced, float[] Onsets, int DurationMs)
