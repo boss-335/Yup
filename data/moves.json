@@ -1,0 +1,6 @@
+[
+  { "slot": "light",    "min_ms": 1000, "max_ms": 2500, "base_damage": 8,  "charge_gain": 10, "threshold": 0.55, "cooldown_ms": 1500 },
+  { "slot": "heavy",    "min_ms": 3000, "max_ms": 6000, "base_damage": 25, "charge_gain": 20, "threshold": 0.55, "cooldown_ms": 4000 },
+  { "slot": "finisher", "repeat_count": 4, "window_ms": 8000, "per_rep_threshold": 0.6,
+    "charge_required": 100, "base_damage": 50, "ko_below_hp": 50, "max_tempo_ratio": 1.6 }
+]

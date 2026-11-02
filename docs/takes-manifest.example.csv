@@ -1,0 +1,7 @@
+ref,attempt,kind,group
+# Paths are relative to this CSV. kind: correct | hum | offkey | different. group: man | woman | child.
+# Put recordings under /recordings (git-ignored) — never commit voices.
+../data/midi/ode_to_joy_a.mid,../recordings/p01_man/ode_to_joy_a_correct.wav,correct,man
+../data/midi/ode_to_joy_a.mid,../recordings/p01_man/ode_to_joy_a_hum.wav,hum,man
+../data/midi/ode_to_joy_a.mid,../recordings/p01_man/ode_to_joy_a_offkey.wav,offkey,man
+../data/midi/ode_to_joy_a.mid,../recordings/p01_man/twinkle_a_correct.wav,different,man

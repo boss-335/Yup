@@ -1,0 +1,26 @@
+{
+  "id": "pd_classics_01",
+  "name": { "ar": "كلاسيكيات خالدة", "en": "Timeless Classics" },
+  "license": {
+    "tier": "A_public_domain",
+    "composition_status": "public_domain",
+    "reference_source": "midi_authored_in_house",
+    "verified_by": "",
+    "verified_at": ""
+  },
+  "streamer_safe": true,
+  "snippets": [
+    { "id": "ode_to_joy_a",     "title": { "ar": "نشيد الفرح — بيتهوفن", "en": "Ode to Joy — Beethoven" },
+      "reference_midi": "midi/ode_to_joy_a.mid", "suggested_slot": "heavy", "duration_ms": 4000, "difficulty": 1 },
+    { "id": "twinkle_a",        "title": { "ar": "تلألئي يا نجمة — تراثي (موتسارت)", "en": "Twinkle Twinkle — traditional (Mozart var.)" },
+      "reference_midi": "midi/twinkle_a.mid", "suggested_slot": "heavy", "duration_ms": 4000, "difficulty": 1 },
+    { "id": "fur_elise_a",      "title": { "ar": "إلى إليزا — بيتهوفن", "en": "Für Elise — Beethoven" },
+      "reference_midi": "midi/fur_elise_a.mid", "suggested_slot": "light", "duration_ms": 2360, "difficulty": 3 },
+    { "id": "eine_kleine_a",    "title": { "ar": "موسيقى ليلية صغيرة — موتسارت", "en": "Eine kleine Nachtmusik — Mozart" },
+      "reference_midi": "midi/eine_kleine_a.mid", "suggested_slot": "heavy", "duration_ms": 3180, "difficulty": 2 },
+    { "id": "brahms_lullaby_a", "title": { "ar": "تهويدة برامز", "en": "Brahms' Lullaby" },
+      "reference_midi": "midi/brahms_lullaby_a.mid", "suggested_slot": "heavy", "duration_ms": 4400, "difficulty": 2 },
+    { "id": "frere_jacques_a",  "title": { "ar": "الأخ جاك — تراثي", "en": "Frère Jacques — traditional" },
+      "reference_midi": "midi/frere_jacques_a.mid", "suggested_slot": "heavy", "duration_ms": 4000, "difficulty": 1 }
+  ]
+}

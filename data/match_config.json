@@ -1,0 +1,19 @@
+{
+  "sample_rate": 48000, "frame": 2048, "hop": 512,
+  "yin_threshold": 0.15, "median_window": 5,
+  "dtw_band": 0.2, "dtw_step_penalty": 0.3, "tempo_min": 0.6, "tempo_max": 1.6,
+  "weights": { "pitch": 0.6, "rhythm": 0.25, "coverage": 0.15 },
+  "pitch_gates_others": true,
+  "reject": { "min_duration_ratio": 0.7, "min_coverage": 0.5, "min_rms_db": -45 },
+
+  "pitch_cost": { "free_cents": 30, "max_cents": 150 },
+  "rhythm": { "tolerance": 0.05 },
+  "dtw_points": 256,
+  "analysis": {
+    "analysis_rate": 24000, "pitch_lowpass_hz": 1500, "yin_fallback_threshold": 0.35,
+    "min_f0_hz": 65, "max_f0_hz": 1100,
+    "gate_db": -45, "target_rms_db": -20, "max_gain_db": 24,
+    "min_voiced_run": 3, "pitch_onset_semitones": 0.75,
+    "onset_min_gap_ms": 80, "end_silence_ms": 250
+  }
+}

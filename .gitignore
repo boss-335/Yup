@@ -1,0 +1,13 @@
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+/out/
+# Never commit audio recordings (GDD §0.4, §5.4)
+*.wav
+*.mp3
+*.ogg
+*.flac
+# Local test recordings for M0 (never commit voices — GDD §9)
+/recordings/
