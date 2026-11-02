@@ -21,6 +21,9 @@ public static class Program
             [--human] [--rate 48000]   (--human: consonants, noise, reverb… see HumanVoice)
   eval      [--performers 10] [--report <file.md>] [--dump <takes.csv>]  synthetic M0 benchmark (GDD §11)
   eval      --manifest <takes.csv> [--report <file.md>]  same metrics on real recordings
+  battle    [--skill good|average|bad] [--performer woman] [--seed 1]
+            [--light fur_elise_a] [--heavy ode_to_joy_a] [--finisher beethoven5_a]
+                                                   V1 training match: synthetic singer vs bot, full pipeline
   gen-takes --out <dir> [--performers 10]          humanized synthetic take set + takes.csv
                                                    (stand-in until real recordings exist)
 
@@ -43,6 +46,7 @@ Common: --config <match_config.json>  (default: data/match_config.json found upw
                 "synth" => Synth(opts),
                 "eval" => Benchmark.Run(opts, LoadSettings(opts)),
                 "gen-takes" => GenTakes(opts),
+                "battle" => BattleSim.Run(opts),
                 _ => Fail($"unknown command '{args[0]}'\n\n{Usage}"),
             };
         }

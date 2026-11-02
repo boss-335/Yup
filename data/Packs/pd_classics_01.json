@@ -21,6 +21,8 @@
     { "id": "brahms_lullaby_a", "title": { "ar": "تهويدة برامز", "en": "Brahms' Lullaby" },
       "reference_midi": "midi/brahms_lullaby_a.mid", "suggested_slot": "heavy", "duration_ms": 4400, "difficulty": 2 },
     { "id": "frere_jacques_a",  "title": { "ar": "الأخ جاك — تراثي", "en": "Frère Jacques — traditional" },
-      "reference_midi": "midi/frere_jacques_a.mid", "suggested_slot": "heavy", "duration_ms": 4000, "difficulty": 1 }
+      "reference_midi": "midi/frere_jacques_a.mid", "suggested_slot": "heavy", "duration_ms": 4000, "difficulty": 1 },
+    { "id": "beethoven5_a",     "title": { "ar": "السيمفونية الخامسة — بيتهوفن", "en": "Symphony No. 5 — Beethoven" },
+      "reference_midi": "midi/beethoven5_a.mid", "suggested_slot": "finisher", "duration_ms": 1750, "difficulty": 1 }
   ]
 }

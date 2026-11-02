@@ -1,0 +1,27 @@
+{
+  "max_hp": 100,
+  "match_duration_ms": 180000,
+  "charge_max": 100,
+  "quality_exponent": 1.5,
+  "perfect_accuracy": 0.9,
+  "perfect_charge_multiplier": 2,
+  "loadout_size": 3,
+  "finisher_break_keeps_charge": false,
+
+  "bot": {
+    "first_attack_ms": 4000,
+    "attack_interval_ms": 6000,
+    "slots": ["light", "heavy", "light"],
+    "accuracy_mean": 0.72,
+    "accuracy_sd": 0.12,
+    "use_finisher": true,
+    "finisher_rep_interval_ms": 1500
+  },
+
+  "session": {
+    "move_selection": "auto",
+    "min_recognition_accuracy": 0.35,
+    "pre_roll_ms": 150,
+    "max_performance_ms": 9000
+  }
+}

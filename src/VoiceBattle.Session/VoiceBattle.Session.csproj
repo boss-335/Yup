@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Glue between VoiceMatch.Core (audio → accuracy) and BattleRules.Core (accuracy → damage).
+       Everything Unity needs except the mic/UI itself; netstandard2.1, no Unity references. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>VoiceBattle.Session</RootNamespace>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\VoiceMatch.Core\VoiceMatch.Core.csproj" />
+    <ProjectReference Include="..\BattleRules.Core\BattleRules.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="VoiceBattle.Session.Tests" />
+  </ItemGroup>
+</Project>

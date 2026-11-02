@@ -10,5 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\VoiceMatch.Core\VoiceMatch.Core.csproj" />
+    <ProjectReference Include="..\..\src\VoiceBattle.Session\VoiceBattle.Session.csproj" />
   </ItemGroup>
 </Project>

@@ -1,8 +1,7 @@
 # Voice Battle — محرّك مطابقة الصوت (M0)
 
 لعبة قتال جماعية: **غنّي عشان تضرب**. وثيقة التصميم الكاملة: [`docs/voice-battle-gdd.md`](docs/voice-battle-gdd.md).
-هذا المستودع حالياً في مرحلة **M0 — إثبات المطابقة**: مكتبة C# مستقلة عن Unity + أداة سطر أوامر + اختبارات.
-التقرير ونتائجه في [`docs/m0-report.md`](docs/m0-report.md).
+المراحل المنجزة: **M0 — محرّك المطابقة** ([تقرير](docs/m0-report.md)) و **M1 — القتال المحلي** ([تقرير](docs/m1-report.md)): مكتبات C# مستقلة عن Unity + أداة سطر أوامر + اختبارات + سكربتات Unity.
 
 > كل شي يشتغل **محلياً على جهازك بدون إنترنت** بعد أول `restore` (يحمّل حزم NuGet مرة وحدة).
 
@@ -70,6 +69,7 @@ dotnet run --project tools/matcher-lab -- <command>
 | `eval` | اختبار القبول على أصوات صناعية |
 | `eval --manifest recordings/takes.csv` | **نفس الاختبار على تسجيلات حقيقية** (انظر القسم 4) |
 | `gen-takes --out recordings/humanized` | يولّد 240 أداء أصعب (حروف ساكنة، ضجيج، صدى، قص…) + `takes.csv` |
+| `battle --skill average` | مباراة تدريب كاملة: مغنّي صناعي ضد البوت عبر كل المراحل الحقيقية |
 | `analyze take.wav --frames` | يطبع مخرجات YIN الخام إطاراً بإطار (لتشخيص أخطاء الطبقة) |
 
 سجّل نفسك بأي برنامج (Audacity مثلاً) واحفظ WAV، ثم:
@@ -88,9 +88,12 @@ src/VoiceMatch.Core/         مكتبة المطابقة (netstandard2.1 — ت�
   Midi/  Audio/              قراءة/كتابة MIDI و WAV
   Synthesis/                 مولّد أصوات صناعية للاختبارات
 src/VoiceMatch.Core.Tests/   اختبارات xUnit
+src/BattleRules.Core/        منطق القتال (HP، الشحن، التبريد، الضرر، الحزم والتراخيص، بوت التدريب) بدون Unity
+src/VoiceBattle.Session/     يربط المكتبتين: تقطيع المايك، التعرّف على الحركة المغنّاة، جلسة التدريب
+unity/                       سكربتات Unity (انظر unity/README.md)
 tools/matcher-lab/           أداة سطر الأوامر
 data/match_config.json       كل العتبات والأوزان (لا شيء ثابت في الكود)
-data/moves.json              إعدادات الحركات (يستخدمها BattleRules في M1)
+data/moves.json, battle.json إعدادات الحركات والمباراة والبوت
 data/melodies/*.json         ألحان الملك العام مكتوبة يدوياً (المصدر)
 data/midi/*.mid              المراجع المولّدة منها
 data/Packs/                  ملفات الحزم مع حقل الترخيص
@@ -118,14 +121,8 @@ legacy/                      مشروع قديم غير مستخدم
 
 ---
 
-## 5. الربط مع Unity لاحقاً (M1)
-
-```bash
-dotnet publish src/VoiceMatch.Core -c Release -o out/unity
-```
-انسخ `VoiceMatch.Core.dll` و`System.Text.Json.dll` و`System.Text.Encodings.Web.dll` و`Microsoft.Bcl.AsyncInterfaces.dll` من `out/unity` إلى `Assets/Plugins/VoiceMatch/` في مشروع Unity.
-لو Unity اشتكى من مكتبات مكررة (`System.Memory`، `System.Buffers`، …) لا تنسخها — Unity فيه نسخته منها.
-طبقة Unity (MicCapture) تأخذ عينات المايك ← `PerformanceEndpointer` يحدد بداية ونهاية الأداء ← `ContourBuilder.FromAudio` ← `ContourMatcher.Match`.
+## 5. Unity (M1)
+الخطوات كاملة في [`unity/README.md`](unity/README.md): مشروع Unity جديد داخل `unity/` ← `unity/sync.sh` (أو `.\unity\sync.ps1`) ← أضف `TrainingMatch` و `TrainingHud` لكائن في المشهد ← Play.
 
 ## 6. الإكمال مع Claude Code على جهازك
 ثبّت Claude Code محلياً وافتحه داخل مجلد المستودع — ملف [`CLAUDE.md`](CLAUDE.md) يشرح له المشروع ووين وقفنا وقواعد العمل.
