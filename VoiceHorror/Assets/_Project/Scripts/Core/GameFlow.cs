@@ -223,6 +223,14 @@ namespace VoiceHorror.Core
             if (_ended) return;
             _ended = true;
             Playing = false;
+            StartCoroutine(DeathScreenAfterFall());
+        }
+
+        IEnumerator DeathScreenAfterFall()
+        {
+            // Let the camera collapse to the ground before the card appears.
+            GameState.Block(this, true);
+            yield return new WaitForSecondsRealtime(1.8f);
             bool checkpoint = Checkpoint.Has && (mode == SceneMode.VerticalSlice || mode == SceneMode.CreatureGreybox);
             MessageView.Show(Loc.T("end.dead_title"), Loc.T("end.dead_body") + "\n\n" + Stats(),
                 checkpoint ? Loc.T("btn.restart_checkpoint") : Loc.T("btn.restart_level"), () => Reload(checkpoint),

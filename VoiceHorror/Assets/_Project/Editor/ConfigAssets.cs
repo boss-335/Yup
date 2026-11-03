@@ -233,6 +233,22 @@ namespace VoiceHorror.EditorTools
             return mat;
         }
 
+        /// <summary>Alpha-blended unlit material (ghosts).</summary>
+        public static Material Transparent(string name, Color color)
+        {
+            Directory.CreateDirectory(MaterialDir);
+            string path = $"{MaterialDir}/{name}.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                mat = new Material(Shader.Find("Sprites/Default"));
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            mat.color = color;
+            EditorUtility.SetDirty(mat);
+            return mat;
+        }
+
         /// <summary>Alpha-blended unlit material for effects (Sprites/Default exists in built-in and URP).</summary>
         public static Material Effect()
         {

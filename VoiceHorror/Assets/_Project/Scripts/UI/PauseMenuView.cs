@@ -39,6 +39,15 @@ namespace VoiceHorror.UI
             }
         }
 
+        bool _settingsOnly;
+
+        /// <summary>Title screen: open straight into settings; Back closes the menu.</summary>
+        public void OpenSettingsOnly()
+        {
+            _settingsOnly = true;
+            Open(Page.Settings);
+        }
+
         void Open(Page p)
         {
             _open = true;
@@ -187,7 +196,11 @@ namespace VoiceHorror.UI
                 s.language = s.language == "en" ? "ar" : "en";
                 PlayerSettingsData.Save();
             }
-            if (Ui.Button(new Rect(x + 2 * (bw + 15), y, bw, bh), Loc.T("btn.back"), 22)) _page = Page.Main;
+            if (Ui.Button(new Rect(x + 2 * (bw + 15), y, bw, bh), Loc.T("btn.back"), 22))
+            {
+                if (_settingsOnly) { _settingsOnly = false; Close(); }
+                else _page = Page.Main;
+            }
         }
 
         void DrawJournal(Rect r)

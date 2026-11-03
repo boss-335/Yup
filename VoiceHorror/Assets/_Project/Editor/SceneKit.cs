@@ -7,7 +7,9 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
+using VoiceHorror.Art;
 using VoiceHorror.Audio;
+using VoiceHorror.Characters;
 using VoiceHorror.Config;
 using VoiceHorror.Core;
 using VoiceHorror.Gameplay.Creatures;
@@ -26,6 +28,7 @@ namespace VoiceHorror.EditorTools
 
         public readonly ConfigAssets.Bundle Config;
         public readonly Material Stone, Coral, Wood, DarkWood, Sand, Sea, Cloth, Metal, Lamp, CreatureDark, TapeMat, RelicMat, Fx;
+        public readonly Material Hair, Bone, Ghost, ReemSkin, Abaya, ThobeWhite, CharGlow;
         readonly Dictionary<string, Material> _skins = new Dictionary<string, Material>();
         Transform _geometry;
 
@@ -45,6 +48,13 @@ namespace VoiceHorror.EditorTools
             TapeMat = ConfigAssets.Lit("Tape", new Color(0.15f, 0.15f, 0.16f), 0.4f, new Color(0.2f, 0.5f, 0.5f));
             RelicMat = ConfigAssets.Lit("Relic", new Color(0.9f, 0.85f, 0.75f), 0.6f, new Color(0.6f, 0.6f, 0.5f));
             Fx = ConfigAssets.Effect();
+            Hair = ConfigAssets.Lit("Hair", new Color(0.025f, 0.02f, 0.02f), 0.55f);
+            Bone = ConfigAssets.Lit("BoneShell", new Color(0.86f, 0.82f, 0.72f), 0.35f);
+            Ghost = ConfigAssets.Transparent("Ghost", new Color(0.55f, 0.85f, 0.95f, 0.38f));
+            ReemSkin = ConfigAssets.Lit("ReemSkin", new Color(0.72f, 0.55f, 0.42f), 0.3f);
+            Abaya = ConfigAssets.Lit("Abaya", new Color(0.05f, 0.045f, 0.05f), 0.25f);
+            ThobeWhite = ConfigAssets.Lit("Thobe", new Color(0.7f, 0.68f, 0.62f), 0.15f);
+            CharGlow = ConfigAssets.Lit("CharGlow", new Color(1f, 0.85f, 0.55f), 0.4f, new Color(1.6f, 1.2f, 0.7f));
         }
 
         // ------------------------------------------------------------ Scene lifecycle
@@ -69,6 +79,20 @@ namespace VoiceHorror.EditorTools
             AssetDatabase.SaveAssets();
             Debug.Log($"[VoiceHorror] Built scene {path}");
             return path;
+        }
+
+        /// <summary>Puts the named scenes first in Build Settings, in this order (others keep their order after).</summary>
+        public static void SetBuildOrder(params string[] names)
+        {
+            var list = EditorBuildSettings.scenes.ToList();
+            var ordered = new List<EditorBuildSettingsScene>();
+            foreach (var n in names)
+            {
+                var s = list.Find(x => Path.GetFileNameWithoutExtension(x.path) == n);
+                if (s != null) { ordered.Add(s); list.Remove(s); }
+            }
+            ordered.AddRange(list);
+            EditorBuildSettings.scenes = ordered.ToArray();
         }
 
         public void NightLighting(float moon = 0.18f)
@@ -180,9 +204,12 @@ namespace VoiceHorror.EditorTools
             cc.stepOffset = 0.35f;
             cc.slopeLimit = 45f;
 
+            // Head pivot (look + height, driven by PlayerController) → camera (bob/shake/death, CameraFx).
+            var head = new GameObject("Head").transform;
+            head.SetParent(go.transform, false);
+            head.localPosition = new Vector3(0f, 1.65f, 0f);
             var camGo = new GameObject("Main Camera") { tag = "MainCamera" };
-            camGo.transform.SetParent(go.transform, false);
-            camGo.transform.localPosition = new Vector3(0f, 1.65f, 0f);
+            camGo.transform.SetParent(head, false);
             var cam = camGo.AddComponent<Camera>();
             cam.nearClipPlane = 0.05f;
             cam.farClipPlane = 250f;
@@ -198,18 +225,22 @@ namespace VoiceHorror.EditorTools
             flash.type = LightType.Spot;
             flash.range = 16f;
             flash.spotAngle = 60f;
-            flash.intensity = 2.2f;
+            flash.intensity = 1.7f;
             flash.color = new Color(1f, 0.86f, 0.65f);
             flash.shadows = LightShadows.Soft;
 
+            camGo.AddComponent<CameraFx>();
+            var rig = camGo.AddComponent<FirstPersonRig>();
+            rig.palette = new CharacterPalette { skin = ReemSkin, cloth = Abaya, dark = CreatureDark, glow = CharGlow, metal = Metal, wood = Wood, shell = Bone, hair = Hair, ghost = Ghost };
+
             var pc = go.AddComponent<PlayerController>();
-            pc.cameraPivot = camGo.transform;
+            pc.cameraPivot = head;
             go.AddComponent<PlayerNoiseEmitter>();
             go.AddComponent<PlayerHealth>();
             go.AddComponent<PlayerInteractor>();
             go.AddComponent<VoiceRecorder>();
             var wc = go.AddComponent<WeaponController>();
-            wc.aimOrigin = camGo.transform;
+            wc.aimOrigin = head;
             return go;
         }
 
@@ -450,7 +481,13 @@ namespace VoiceHorror.EditorTools
             return m;
         }
 
-        public CreatureBrain Creature(CreatureDefinition def, Vector3 pos, float yaw, Transform[] patrol = null, bool active = true, string name = null)
+        public CharacterPalette CreaturePalette(CreatureDefinition def) => new CharacterPalette
+        {
+            skin = SkinFor(def), dark = CreatureDark, glow = GlowFor(def), cloth = Cloth, hair = Hair,
+            wood = Wood, metal = Metal, ghost = Ghost, shell = Bone,
+        };
+
+        public CreatureBrain Creature(CreatureDefinition def, Vector3 pos, float yaw, Transform[] patrol = null, bool active = true, string name = null, int seed = 1, bool dormant = false)
         {
             var go = new GameObject(name ?? def.displayNameEn);
             go.transform.SetPositionAndRotation(pos, Quaternion.Euler(0f, yaw, 0f));
@@ -466,11 +503,10 @@ namespace VoiceHorror.EditorTools
             var brain = go.AddComponent<CreatureBrain>();
             brain.definition = def;
             brain.patrol = patrol;
-            CreatureBody.Build(go, def, SkinFor(def), CreatureDark, GlowFor(def));
+            brain.startDormant = dormant;
+            CreatureBody.Build(go, def, CreaturePalette(def), seed);
             if (def.archetype == CreatureArchetype.Heart)
             {
-                var ring = go.transform.Find("Visual/Core/Ring");
-                if (ring != null) ring.gameObject.AddComponent<Rotator>().degreesPerSecond = new Vector3(0f, 25f, 0f);
                 var lightGo = new GameObject("HeartLight");
                 lightGo.transform.SetParent(go.transform, false);
                 lightGo.transform.localPosition = new Vector3(0f, def.height * 0.6f, 0f);
@@ -483,5 +519,56 @@ namespace VoiceHorror.EditorTools
             go.SetActive(active);
             return brain;
         }
+    
+        // ------------------------------------------------------------ Story characters
+
+        public CharacterPalette HumanPalette(Material skin, Material cloth) => new CharacterPalette
+        {
+            skin = skin, cloth = cloth, dark = CreatureDark, glow = CharGlow, hair = Hair,
+            wood = Wood, metal = Metal, ghost = Ghost, shell = Bone,
+        };
+
+        static ProceduralCharacter Character(string name, string blueprint, Vector3 pos, float yaw, CharacterPalette palette, float scale = 1f)
+        {
+            var go = new GameObject(name);
+            go.transform.SetPositionAndRotation(pos, Quaternion.Euler(0f, yaw, 0f));
+            var ch = go.AddComponent<ProceduralCharacter>();
+            ch.blueprintId = blueprint;
+            ch.palette = palette;
+            ch.scale = scale;
+            return ch;
+        }
+
+        /// <summary>The grandfather's singing echo.</summary>
+        public NahhamEcho Nahham(Vector3 pos, float yaw)
+        {
+            var ch = Character("Echo of Abdullah the Nahham", Blueprints.Nahham, pos, yaw, HumanPalette(ReemSkin, ThobeWhite));
+            ch.castShadows = false;
+            return ch.gameObject.AddComponent<NahhamEcho>();
+        }
+
+        /// <summary>Mubarak walking the lighthouse gallery.</summary>
+        public MubarakFigure Mubarak(Vector3 galleryCenter, float radius)
+        {
+            var ch = Character("Mubarak (lighthouse)", Blueprints.Mubarak, galleryCenter, 0f, HumanPalette(ReemSkin, ThobeWhite));
+            var f = ch.gameObject.AddComponent<MubarakFigure>();
+            f.galleryRadius = radius;
+            return f;
+        }
+
+        /// <summary>A gallery exhibit: a creature driven by GalleryPuppet instead of AI.</summary>
+        public GameObject Exhibit(CreatureDefinition def, Vector3 pos, float yaw, bool mobile, int seed = 1)
+        {
+            var go = new GameObject(def.displayNameEn + " (exhibit)");
+            go.transform.SetPositionAndRotation(pos, Quaternion.Euler(0f, yaw, 0f));
+            CreatureBody.Build(go, def, CreaturePalette(def), seed);
+            var p = go.AddComponent<GalleryPuppet>();
+            p.definition = def;
+            p.mobile = mobile;
+            return go;
+        }
+
+        public GameObject StaticHuman(string name, string blueprint, Vector3 pos, float yaw, Material skin, Material cloth)
+            => Character(name, blueprint, pos, yaw, HumanPalette(skin, cloth)).gameObject;
     }
 }

@@ -48,9 +48,13 @@ namespace VoiceHorror.Gameplay.Player
 
         void Start() => GameState.ApplyCursor();
 
+        PlayerHealth _health;
+
         void Update()
         {
             if (GameState.Paused) return;
+            if (_health == null) _health = GetComponent<PlayerHealth>();
+            if (_health != null && !_health.IsAlive) { Velocity = Vector3.zero; return; }
             bool blocked = GameState.InputBlocked || IsHidden;
             var b = GameConfig.Balance;
 

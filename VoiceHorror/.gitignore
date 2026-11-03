@@ -10,6 +10,7 @@
 /[Rr]ecordings/
 *.csproj
 !dsp-tests/**/*.csproj
+!tools/**/*.csproj
 *.sln
 !dsp-tests/*.sln
 *.suo
@@ -31,3 +32,5 @@ sysinfo.txt
 dsp-tests/**/bin/
 dsp-tests/**/obj/
 dsp-tests/**/TestResults/
+tools/**/bin/
+tools/**/obj/

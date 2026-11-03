@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using VoiceHorror.Art;
+using VoiceHorror.Characters;
 using VoiceHorror.Core;
 using VoiceHorror.Gameplay.Creatures;
 using VoiceHorror.Gameplay.Weapons;
@@ -142,6 +144,8 @@ namespace VoiceHorror.EditorTools
                 k.Point("Patrol D", new Vector3(0, 0, -16)),
             };
             k.Creature(k.Config.maskut, new Vector3(14, 0, -10), 0f, patrol.ToArray());
+            // A dormant one slumped against the west wall: whispering past it is safe, talking wakes it.
+            k.Creature(k.Config.maskut, new Vector3(-21.3f, 0, -2f), 90f, null, true, "Maskut (dormant)", 2, true);
 
             var sys = k.Systems(SceneMode.CreatureGreybox, true, true, true, new Bounds(Vector3.zero, new Vector3(60, 20, 60)));
             sys.GetComponent<AtmosphereController>().playWaves = false;
@@ -221,6 +225,8 @@ namespace VoiceHorror.EditorTools
             k.Relic("w_nafas", new Vector3(-9.6f, 0.7f, 79.5f));
             k.Tape("tape_03", new Vector3(-1.2f, 0.9f, 77.6f));
             k.LampPost(new Vector3(-6, 0, 74), 1.6f, 10f);
+            // The grandfather's echo sits by his radio, singing; he fades when you come close.
+            k.Nahham(new Vector3(-3.2f, 0, 79.5f), 200f);
 
             // ---------------- Zone C: the market (السوق) and the well
             for (int i = 0; i < 6; i++)
@@ -262,8 +268,11 @@ namespace VoiceHorror.EditorTools
             // Lighthouse (Mubarak's) on its rock — a landmark.
             k.Cylinder("Lighthouse rock", new Vector3(62, -0.5f, 150f), 6f, 2f, k.Stone);
             k.Cylinder("Lighthouse", new Vector3(62, 11f, 150f), 2.2f, 22f, k.Coral);
+            k.Cylinder("Lighthouse gallery", new Vector3(62, 22.1f, 150f), 3.4f, 0.3f, k.DarkWood);
+            k.Cylinder("Lighthouse lamp room", new Vector3(62, 23.6f, 150f), 1.4f, 2.6f, k.Lamp);
+            k.Mubarak(new Vector3(62, 22.25f, 150f), 2.7f);
             var beamPivot = new GameObject("Lighthouse beam").transform;
-            beamPivot.position = new Vector3(62, 22.5f, 150f);
+            beamPivot.position = new Vector3(62, 24.2f, 150f);
             var beam = beamPivot.gameObject.AddComponent<Light>();
             beam.type = LightType.Spot;
             beam.range = 140f;
@@ -291,17 +300,20 @@ namespace VoiceHorror.EditorTools
             k.Creature(k.Config.maskut, new Vector3(18, 0, 64), -90f, new[]
             {
                 k.Point("P2a", new Vector3(-10, 0, 64)), k.Point("P2b", new Vector3(26, 0, 64)), k.Point("P2c", new Vector3(-10.2f, 0, 48)),
-            }, true, "Maskut (street)");
+            }, true, "Maskut (street)", 2);
             k.Creature(k.Config.maskut, new Vector3(-20, 0, 96), 0f, new[]
             {
                 k.Point("P3a", new Vector3(-22, 0, 92)), k.Point("P3b", new Vector3(-22, 0, 128)),
                 k.Point("P3c", new Vector3(18, 0, 128)), k.Point("P3d", new Vector3(18, 0, 92)),
-            }, true, "Maskut (market)");
+            }, true, "Maskut (market)", 5);
             k.Creature(k.Config.siluwa, new Vector3(22, 0, 104), 180f, new[]
             {
                 k.Point("P4a", new Vector3(24, 0, 96)), k.Point("P4b", new Vector3(6, 0, 122)), k.Point("P4c", new Vector3(-26, 0, 116)),
             }, true, "Si'luwa (market)");
             k.Creature(k.Config.budaryah, new Vector3(0, 0, 111f), 180f, null, true, "Bu Daryah (well)");
+            // Dormant villagers: slumped against walls. Sneak past in silence or they wake.
+            k.Creature(k.Config.maskut, new Vector3(-1.3f, 0, 33f), 90f, null, true, "Maskut (dormant, alley)", 3, true);
+            k.Creature(k.Config.maskut, new Vector3(-12f, 0, 116f), 180f, null, true, "Maskut (dormant, market)", 4, true);
             k.Creature(k.Config.summah, new Vector3(24, 0, 178f), 180f, null, true, "Al-Summah (dhow)");
 
             var templates = new GameObject("_Templates").transform;
@@ -333,6 +345,127 @@ namespace VoiceHorror.EditorTools
             k.UiRoot(true, false);
             k.Player(new Vector3(0, 0.05f, 0f), 0f);
             SceneKit.Save("M4_VerticalSlice_AlSummah");
+        }
+
+        // ================================================================ Character gallery
+
+        public static void CharacterGallery(bool prompt)
+        {
+            var k = Begin(prompt);
+            if (k == null) return;
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.16f, 0.17f, 0.2f);
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Exponential;
+            RenderSettings.fogColor = new Color(0.05f, 0.06f, 0.08f);
+            RenderSettings.fogDensity = 0.02f;
+            k.Floor("Floor", new Vector3(21, 0, 0), new Vector2(70, 24), k.Stone);
+            var moon = new GameObject("Moon").AddComponent<Light>();
+            moon.type = LightType.Directional;
+            moon.intensity = 0.35f;
+            moon.color = new Color(0.6f, 0.7f, 0.9f);
+            moon.transform.rotation = Quaternion.Euler(40f, -35f, 0f);
+            var cam = k.StaticCamera(new Vector3(0, 2, -5), new Vector3(0, 1, 0));
+            var view = new GameObject("_Gallery").AddComponent<GalleryView>();
+            view.cam = cam;
+
+            void Spot(Vector3 at, float height)
+            {
+                var l = new GameObject("Spot").AddComponent<Light>();
+                l.type = LightType.Spot;
+                l.range = height * 4f + 6f;
+                l.spotAngle = 55f;
+                l.intensity = 3.2f;
+                l.color = new Color(1f, 0.88f, 0.72f);
+                l.shadows = LightShadows.Soft;
+                l.transform.position = at + new Vector3(1.5f, height + 3f, -2.5f);
+                l.transform.LookAt(at + Vector3.up * height * 0.5f);
+                k.Cylinder("Plinth", at + Vector3.down * 0.02f, 2.2f, 0.06f, k.DarkWood);
+            }
+
+            void Add(Transform target, string ar, string en, string loreAr, string loreEn, float height, float dist)
+                => view.exhibits.Add(new GalleryView.Exhibit { target = target, nameAr = ar, nameEn = en, loreAr = loreAr, loreEn = loreEn, viewHeight = height, viewDistance = dist });
+
+            var c = k.Config;
+            var maskut = k.Exhibit(c.maskut, new Vector3(0, 0, 0), 180f, true);
+            Spot(Vector3.zero, 2.1f);
+            Add(maskut.transform, c.maskut.displayNameAr, c.maskut.displayNameEn, c.maskut.loreAr, c.maskut.loreEn, 1.4f, 4.2f);
+            var siluwa = k.Exhibit(c.siluwa, new Vector3(7, 0, 0), 180f, true);
+            Spot(new Vector3(7, 0, 0), 1.5f);
+            Add(siluwa.transform, c.siluwa.displayNameAr, c.siluwa.displayNameEn, c.siluwa.loreAr, c.siluwa.loreEn, 1.1f, 4.2f);
+            var bu = k.Exhibit(c.budaryah, new Vector3(15, 0, 0), 180f, false);
+            Spot(new Vector3(15, 0, 0), 3.2f);
+            Add(bu.transform, c.budaryah.displayNameAr, c.budaryah.displayNameEn, c.budaryah.loreAr, c.budaryah.loreEn, 2.2f, 8f);
+            var summah = k.Exhibit(c.summah, new Vector3(25, 0, 0), 180f, false);
+            Spot(new Vector3(25, 0, 0), 4f);
+            var heartLight = new GameObject("HeartLight").AddComponent<Light>();
+            heartLight.transform.position = new Vector3(25, 2.6f, -0.8f);
+            heartLight.range = 10f; heartLight.intensity = 2f; heartLight.color = new Color(0.75f, 0.8f, 1f);
+            Add(summah.transform, c.summah.displayNameAr, c.summah.displayNameEn, c.summah.loreAr, c.summah.loreEn, 2.6f, 10f);
+
+            var echo = k.Nahham(new Vector3(34, 0, 0), 180f);
+            echo.alwaysVisible = true;
+            echo.maxAlpha = 0.55f;
+            Spot(new Vector3(34, 0, 0), 1.2f);
+            Add(echo.transform, "عبدالله النهّام (صدى)", "Abdullah the Nahham (echo)",
+                "جد ريم وآخر نهّام في الجزيرة. يجلس متربّع ويده خلف أذنه — هكذا يغني النهّام للبحّارة. يظهر في بيته كذكرى، ويتلاشى إذا قربت.",
+                "Reem's grandfather and the island's last nahham. He sits cross-legged with his hand cupped behind his ear — how a nahham sings to the sailors. He appears in his house as a memory and fades when you come close.", 0.8f, 3.2f);
+
+            var mub = k.Mubarak(new Vector3(41, 0, 0), 1.2f);
+            Spot(new Vector3(41, 0, 0), 1.8f);
+            Add(mub.transform, "مبارك — حارس المنارة", "Mubarak — the lighthouse keeper",
+                "صوته في الراديو طول الليل. يمشي حول شرفة المنارة رافع فانوسه، ويومض به كل ما تكلم. سجّل أصوات الجزيرة كلها… أكثر من اللازم.",
+                "His voice is on the radio all night. He walks the lighthouse gallery with his lantern raised and flashes it whenever he speaks. He recorded every voice on the island… more than he should have.", 1.2f, 4.5f);
+
+            SceneKit.Save("CharacterGallery");
+        }
+
+        // ================================================================ Title screen
+
+        public static void TitleScreen(bool prompt)
+        {
+            var k = Begin(prompt);
+            if (k == null) return;
+            k.NightLighting(0.14f);
+            RenderSettings.fogDensity = 0.022f;
+            var sea = k.Box("Sea", new Vector3(0, -1.2f, 80), new Vector3(600, 1, 600), k.Sea);
+            Object.DestroyImmediate(sea.GetComponent<Collider>());
+            k.Box("Pier", new Vector3(0, -0.15f, 22f), new Vector3(3.5f, 0.3f, 40f), k.Wood);
+            for (int i = 0; i < 8; i++) k.Cylinder("Pile", new Vector3(i % 2 == 0 ? -1.8f : 1.8f, -0.6f, 4f + i * 5f), 0.12f, 1.4f, k.DarkWood);
+            k.LampPost(new Vector3(1.5f, 0, 38f), 1.4f, 9f);
+            k.Box("Boat", new Vector3(3.2f, -0.6f, 10f), new Vector3(1.8f, 0.7f, 4.5f), k.DarkWood);
+            // A villager stands at the end of the pier, listening for you.
+            var watcher = k.Exhibit(k.Config.maskut, new Vector3(0, 0, 39f), 180f, false, 6);
+            Object.DestroyImmediate(watcher.GetComponent<GalleryPuppet>());
+            var body = watcher.GetComponent<CreatureBody>();
+            body.externalControl = true;
+            body.externalPose = CreatureBody.Pose.Listen;
+            body.externalLookTarget = new Vector3(0, 0, 0);
+            // The lighthouse with Mubarak on its gallery.
+            k.Cylinder("Rock", new Vector3(30, -0.6f, 90f), 6f, 2f, k.Stone);
+            k.Cylinder("Lighthouse", new Vector3(30, 11f, 90f), 2.2f, 22f, k.Coral);
+            k.Cylinder("Gallery", new Vector3(30, 22.1f, 90f), 3.4f, 0.3f, k.DarkWood);
+            k.Cylinder("Lamp room", new Vector3(30, 23.6f, 90f), 1.4f, 2.6f, k.Lamp);
+            k.Mubarak(new Vector3(30, 22.25f, 90f), 2.7f);
+            var beam = new GameObject("Beam").AddComponent<Light>();
+            beam.type = LightType.Spot;
+            beam.range = 160f; beam.spotAngle = 16f; beam.intensity = 5f; beam.color = new Color(1f, 0.92f, 0.75f);
+            beam.transform.position = new Vector3(30, 24.2f, 90f);
+            beam.transform.rotation = Quaternion.Euler(6f, -120f, 0f);
+            beam.gameObject.AddComponent<Rotator>().degreesPerSecond = new Vector3(0f, 14f, 0f);
+
+            var camRig = k.StaticCamera(new Vector3(-1.2f, 1.9f, 1f), new Vector3(20f, 8f, 80f));
+            camRig.farClipPlane = 400f;
+            var atm = new GameObject("_Atmosphere").AddComponent<AtmosphereController>();
+            atm.calmFogDensity = 0.022f;
+            var ui = new GameObject("_UI");
+            var title = ui.AddComponent<TitleMenu>();
+            title.cameraRig = camRig.transform;
+            title.lookAt = new Vector3(18f, 7f, 80f);
+            ui.AddComponent<MessageView>();
+            ui.AddComponent<PauseMenuView>();
+            new GameObject("GameConfig").AddComponent<GameConfig>().voiceTuning = k.Config.tuning;
+            SceneKit.Save("Title");
         }
 
         static void Boundary(SceneKit k, Vector3 a, Vector3 b)

@@ -11,14 +11,80 @@ namespace VoiceHorror.Audio
         const int Rate = 44100;
         static AudioClip _drone, _heartbeat, _breath, _wail, _hit, _fail, _step, _pickup, _tape, _waves;
 
-        static AudioClip Make(string name, float seconds, System.Func<int, float, float> sample)
+        static AudioClip Make(string name, float seconds, System.Func<int, float, float> sample, int rate = Rate)
         {
-            int n = Mathf.CeilToInt(seconds * Rate);
+            int n = Mathf.CeilToInt(seconds * rate);
             var data = new float[n];
-            for (int i = 0; i < n; i++) data[i] = sample(i, i / (float)Rate);
-            var clip = AudioClip.Create(name, n, 1, Rate, false);
+            for (int i = 0; i < n; i++) data[i] = sample(i, i / (float)rate);
+            var clip = AudioClip.Create(name, n, 1, rate, false);
             clip.SetData(data, 0);
             return clip;
+        }
+
+        static AudioClip _hum;
+
+        /// <summary>
+        /// The grandfather's echo: a sung "aa" vowel tracing a maqam bayati phrase on D
+        /// (E half-flat is a quarter tone), with glides, vibrato and breath between phrases.
+        /// </summary>
+        public static AudioClip NahhamHum
+        {
+            get
+            {
+                if (_hum) return _hum;
+                const int rate = 22050;
+                // (semitones above D3, seconds); NaN = breath.
+                float[] notes =
+                {
+                    7f, 1.3f, 5f, 0.45f, 3f, 0.45f, 5f, 0.8f, 3f, 0.5f, 1.5f, 0.55f, 0f, 2.1f, float.NaN, 0.9f,
+                    3f, 0.6f, 5f, 0.6f, 7f, 0.9f, 8f, 0.5f, 7f, 1.5f, 5f, 0.5f, 3f, 0.5f, 1.5f, 0.45f, 0f, 2.4f, float.NaN, 1.2f,
+                };
+                float total = 0f;
+                for (int i = 1; i < notes.Length; i += 2) total += notes[i];
+                double phase = 0;
+                uint noise = 0x51A1u;
+                float lastSemis = 0f;
+                _hum = Make("nahham_hum", total, (i, t) =>
+                {
+                    // Find the current note.
+                    float acc = 0f, semis = lastSemis, noteStart = 0f, noteLen = 1f;
+                    bool breath = false;
+                    for (int k = 0; k < notes.Length; k += 2)
+                    {
+                        if (t < acc + notes[k + 1])
+                        {
+                            noteStart = acc; noteLen = notes[k + 1];
+                            if (float.IsNaN(notes[k])) breath = true; else semis = notes[k];
+                            break;
+                        }
+                        acc += notes[k + 1];
+                    }
+                    float local = t - noteStart;
+                    if (!breath)
+                    {
+                        // Portamento into each note, then vibrato that deepens on long notes.
+                        float glide = Mathf.Clamp01(local / 0.12f);
+                        semis = Mathf.Lerp(lastSemis, semis, glide);
+                        if (glide >= 1f) lastSemis = semis;
+                        semis += Mathf.Sin(t * 2f * Mathf.PI * 5.4f) * 0.22f * Mathf.Clamp01(local / 0.5f);
+                    }
+                    float f0 = 146.83f * Mathf.Pow(2f, semis / 12f);
+                    phase += 2.0 * System.Math.PI * f0 / rate;
+                    float voice = 0f;
+                    for (int h = 1; h <= 22; h++)
+                    {
+                        float hf = f0 * h;
+                        if (hf > 4200f) break;
+                        float formant = Mathf.Exp(-Mathf.Pow((hf - 700f) / 180f, 2f)) + 0.6f * Mathf.Exp(-Mathf.Pow((hf - 1150f) / 220f, 2f)) + 0.04f;
+                        voice += Mathf.Sin((float)(phase * h)) * formant / Mathf.Sqrt(h);
+                    }
+                    noise ^= noise << 13; noise ^= noise >> 17; noise ^= noise << 5;
+                    float n = ((noise & 0xFFFF) / 32768f - 1f);
+                    float env = breath ? 0f : Mathf.Clamp01(local / 0.08f) * Mathf.Clamp01((noteLen - local) / 0.05f + (local > noteLen - 0.05f ? 0f : 1f));
+                    return breath ? n * 0.015f * Mathf.Sin(Mathf.PI * Mathf.Clamp01(local / noteLen)) : (voice * 0.12f + n * 0.01f) * env;
+                }, rate);
+                return _hum;
+            }
         }
 
         static float Noise(ref uint state)

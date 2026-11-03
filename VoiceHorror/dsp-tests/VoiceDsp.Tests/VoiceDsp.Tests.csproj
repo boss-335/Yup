@@ -17,5 +17,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../VoiceDsp/VoiceDsp.csproj" />
+    <ProjectReference Include="../VoiceArt/VoiceArt.csproj" />
   </ItemGroup>
 </Project>

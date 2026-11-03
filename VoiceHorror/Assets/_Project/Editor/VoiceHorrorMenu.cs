@@ -24,16 +24,25 @@ namespace VoiceHorror.EditorTools
         [MenuItem(Root + "Build Vertical Slice - Al-Summah Island (M4)", priority = 5)]
         public static void BuildVerticalSlice() => Run(LevelBuilders.VerticalSlice);
 
+        [MenuItem(Root + "Build Character Gallery", priority = 6)]
+        public static void BuildGallery() => Run(LevelBuilders.CharacterGallery);
+
+        [MenuItem(Root + "Build Title Screen", priority = 7)]
+        public static void BuildTitle() => Run(LevelBuilders.TitleScreen);
+
         [MenuItem(Root + "Build All Scenes", priority = 20)]
         public static void BuildAll()
         {
             if (!SceneKit.PrepareNewScene()) return;
+            LevelBuilders.CharacterGallery(false);
+            LevelBuilders.TitleScreen(false);
             LevelBuilders.MicTest(false);
             LevelBuilders.ScoreLab(false);
             LevelBuilders.WeaponRange(false);
             LevelBuilders.CreatureGreybox(false);
             LevelBuilders.VerticalSlice(false);
-            EditorUtility.DisplayDialog("VoiceHorror", "All five scenes were built into Assets/_Project/Scenes and added to Build Settings.\nThe Vertical Slice is open now.", "OK");
+            SceneKit.SetBuildOrder("Title", "M4_VerticalSlice_AlSummah", "M2_WeaponRange", "CharacterGallery", "M0_MicTest", "M1_ScoreLab", "M3_CreatureGreybox");
+            EditorUtility.DisplayDialog("VoiceHorror", "All scenes were built into Assets/_Project/Scenes and added to Build Settings (Title first).\nThe Vertical Slice is open now — or open CharacterGallery to see every character animate.", "OK");
         }
 
         [MenuItem(Root + "Create or Update Config Assets", priority = 40)]

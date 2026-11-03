@@ -24,6 +24,9 @@ namespace VoiceHorror.UI
         void Awake() { if (_instance == null) _instance = this; }
         void OnDestroy() { if (_instance == this) _instance = null; }
 
+        /// <summary>True while a radio line is on screen (Mubarak's lantern flashes).</summary>
+        public static bool IsSpeaking => _instance != null && _instance._current != null;
+
         public static void Say(string key)
         {
             var v = Get();

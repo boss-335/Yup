@@ -332,7 +332,7 @@ namespace VoiceHorror.Dsp.Tests
         public void LamAlefLigature()
         {
             Assert.Equal("ﻻ", ArabicShaper.Shape("لا"));
-            Assert.Equal("ﻟﻼ" == ArabicShaper.Shape("للا") ? 1 : 0, 1);
+            Assert.Equal("\uFEDF\uFEFC", ArabicShaper.Shape("\u0644\u0644\u0627"));
         }
 
         [Fact]

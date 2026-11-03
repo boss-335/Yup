@@ -16,11 +16,16 @@ namespace VoiceHorror.Gameplay.Creatures
     /// </summary>
     public sealed class CreatureBrain : MonoBehaviour, INoiseListener, IDamageable
     {
-        public enum State { Idle, Investigate, Hunt, Search, Stagger, Flee, Wail, Dead }
+        public enum State { Idle, Investigate, Hunt, Search, Stagger, Flee, Wail, Dead, Dormant, Waking }
 
         public CreatureDefinition definition;
         [Tooltip("Optional patrol points for Idle; otherwise wanders around its spawn.")]
         public Transform[] patrol;
+        [Tooltip("Starts slumped against a wall. Whispers do not wake it; talking nearby does.")]
+        public bool startDormant;
+        [Tooltip("Loudness (0..1, 1 = Loud) needed to wake a dormant creature.")]
+        public float wakeLoudness = 0.3f;
+        public float wakeDuration = 1.6f;
 
         public State Current { get; private set; } = State.Idle;
         public float Health { get; private set; }
@@ -93,7 +98,7 @@ namespace VoiceHorror.Gameplay.Creatures
                 }
                 else _agent.enabled = false;
             }
-            SetState(State.Idle);
+            SetState(startDormant ? State.Dormant : State.Idle);
         }
 
         bool AgentReady => _agent != null && _agent.enabled && _agent.isOnNavMesh;
@@ -106,7 +111,7 @@ namespace VoiceHorror.Gameplay.Creatures
             _wanderTimer = 0f;
             if (AgentReady)
             {
-                _agent.isStopped = s == State.Stagger || s == State.Wail;
+                _agent.isStopped = s == State.Stagger || s == State.Wail || s == State.Dormant || s == State.Waking;
                 _agent.speed = SpeedFor(s);
             }
             StateChanged?.Invoke(s);
@@ -129,6 +134,17 @@ namespace VoiceHorror.Gameplay.Creatures
         public void OnNoise(in NoiseEvent e, float effectiveRadius)
         {
             if (Current == State.Dead) return;
+
+            if (Current == State.Waking) return;
+            if (Current == State.Dormant)
+            {
+                bool loudEnough = e.loudness01 >= wakeLoudness || e.source == NoiseSource.CreatureAlert;
+                if (!loudEnough) return;
+                LastHeardPosition = e.source == NoiseSource.CreatureAlert ? e.target : e.position;
+                _lastHeardTime = Time.time;
+                SetState(State.Waking);
+                return;
+            }
 
             if (e.source == NoiseSource.CreatureAlert)
             {
@@ -244,6 +260,7 @@ namespace VoiceHorror.Gameplay.Creatures
                 case State.Stagger: if (_stateTimer >= 0f) SetState(IsMobile ? State.Hunt : State.Idle); break;
                 case State.Flee: UpdateFlee(); break;
                 case State.Wail: UpdateWail(); break;
+                case State.Waking: if (_stateTimer >= wakeDuration) SetState(State.Investigate); break;
             }
         }
 
@@ -255,13 +272,15 @@ namespace VoiceHorror.Gameplay.Creatures
             if (Vector3.Distance(transform.position, _player.position) > definition.closeSenseRadius) return;
             LastHeardPosition = _player.position;
             _lastHeardTime = Time.time;
+            if (Current == State.Dormant) { SetState(State.Waking); return; }
+            if (Current == State.Waking) return;
             if (Current == State.Idle || Current == State.Search || Current == State.Investigate) SetState(State.Hunt);
         }
 
         void TryAttack()
         {
             if (_player == null || _playerHealth == null || !_playerHealth.IsAlive || _attackTimer > 0f) return;
-            if (Current == State.Stagger || Current == State.Flee) return;
+            if (Current == State.Stagger || Current == State.Flee || Current == State.Dormant || Current == State.Waking) return;
             float dist = Vector3.Distance(transform.position, _player.position);
             if (dist > definition.attackRange) return;
             var pc = PlayerController.Instance;
