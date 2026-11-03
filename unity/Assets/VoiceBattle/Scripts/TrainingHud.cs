@@ -3,12 +3,14 @@ using System.Linq;
 using BattleRules.Core;
 using UnityEngine;
 using VoiceBattle.Session;
+using VoiceBattle.Session.Text;
 
 namespace VoiceBattle.UnityLayer
 {
     /// <summary>
-    /// PLACEHOLDER debug HUD for M1 (IMGUI, no art). The real UI waits for the visual-style decision
-    /// (GDD §12 Q7) and needs RTL text shaping for Arabic, which IMGUI does not do — hence English labels.
+    /// Debug HUD over the stage (IMGUI): HP, charge, cooldowns, mic level, the last take's score breakdown
+    /// and the event log. The stage itself (StageView) is the game view; this stays a developer overlay.
+    /// Arabic names go through ArabicShaper because IMGUI does no shaping or RTL.
     /// Shows: HP, charge, cooldowns, mic level, the last take's score breakdown and the event log.
     /// </summary>
     [RequireComponent(typeof(TrainingMatch))]
@@ -48,7 +50,8 @@ namespace VoiceBattle.UnityLayer
             GUILayout.Label($"Time left {b.RemainingMs(now) / 1000 / 60}:{b.RemainingMs(now) / 1000 % 60:00}", _big);
             foreach (var f in b.Fighters)
             {
-                GUILayout.Label($"{f.Name}   HP {f.Hp:F0}   charge {f.Charge:F0}" + (f.Chain != null ? $"   FINISHER {f.Chain.Reps}/{b.Config.Move(MoveSlot.Finisher).RepeatCount}" : ""));
+                var ch = f.Id == TrainingSession.PlayerId ? s.PlayerCharacter : s.BotCharacter;
+                GUILayout.Label($"{ArabicShaper.ForDisplay(ch.Name.Ar)} ({ch.Name.En})   HP {f.Hp:F0}   charge {f.Charge:F0}" + (f.Chain != null ? $"   FINISHER {f.Chain.Reps}/{b.Config.Move(MoveSlot.Finisher).RepeatCount}" : ""));
                 Bar(f.Hp / b.Config.MaxHp, f.IsBot ? new Color(0.9f, 0.3f, 0.3f) : new Color(0.3f, 0.8f, 0.4f));
                 Bar(f.Charge / b.Config.ChargeMax, new Color(1f, 0.8f, 0.2f));
             }

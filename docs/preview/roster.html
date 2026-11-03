@@ -1,0 +1,505 @@
+<title>شخصيات Voice Battle</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=Readex+Pro:wght@400;600&display=swap">
+<style>
+/* Layout: one stage up top (the game), the cast below as a 3-up grid, then the move key. Single dark theme: it is a theatre. */
+:root {
+  --night: #1B1036;
+  --plum: #3B1F5E;
+  --floor: #2A1A40;
+  --spot: #FFF4C2;
+  --curtain: #8E1B3A;
+  --gold: #FFD23F;
+  --sour: #8A8F98;
+  --ink: #F6EFFF;
+  --muted: #BBA9D6;
+  --line: rgba(246, 239, 255, 0.14);
+  --panel: rgba(255, 255, 255, 0.05);
+  --display: "Lalezar", "Readex Pro", system-ui, sans-serif;
+  --body: "Readex Pro", "Segoe UI", Tahoma, system-ui, sans-serif;
+  color-scheme: dark;
+}
+html { background: var(--night); }
+body {
+  background: linear-gradient(180deg, var(--night), var(--plum) 70%, var(--night));
+  color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 40px; }
+h1, h2 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap: balance; letter-spacing: 0; }
+h1 { font-size: clamp(34px, 6vw, 56px); line-height: 1.1; }
+h2 { font-size: 28px; }
+.lede { color: var(--muted); max-width: 62ch; margin: 6px 0 0; }
+header { display: grid; gap: 4px; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; color: var(--gold); }
+
+/* Stage */
+.stage-box { display: grid; gap: 12px; }
+.stage { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--night); }
+.stage canvas { display: block; width: 100%; height: auto; aspect-ratio: 16 / 8; max-width: 100%; }
+.pickers { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; }
+.pickers label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+select, input[type=range] { font: inherit; }
+select { background: var(--floor); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.acc { min-width: 220px; }
+.acc output { color: var(--ink); font-variant-numeric: tabular-nums; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; }
+button {
+  font: 600 14px var(--body); color: var(--ink); background: var(--floor); border: 1px solid var(--line);
+  border-radius: 999px; padding: 8px 16px; cursor: pointer;
+}
+button:hover { border-color: var(--spot); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button.primary { background: var(--curtain); border-color: transparent; }
+button.gold { color: #2a1a00; background: var(--gold); border-color: transparent; }
+.readout { font-size: 13px; color: var(--muted); min-height: 1.6em; font-variant-numeric: tabular-nums; }
+
+/* Cast */
+.cast { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 860px) { .cast { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 540px) { .cast { grid-template-columns: 1fr; } }
+.card { display: grid; grid-template-rows: auto auto 1fr; gap: 8px; padding: 14px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); min-width: 0; }
+.card canvas { width: 100%; height: auto; aspect-ratio: 4 / 3; max-width: 100%; border-radius: 10px; background: radial-gradient(ellipse at 50% 85%, rgba(255,244,194,.22), transparent 60%), var(--floor); }
+.card h3 { font-family: var(--display); font-weight: 400; font-size: 26px; margin: 0; line-height: 1.1; }
+.card .en { color: var(--muted); font-size: 13px; }
+.card .tag { margin: 0; }
+.lines { display: grid; gap: 2px; font-size: 13px; color: var(--muted); margin: 0; padding: 0; list-style: none; }
+.lines b { color: var(--ink); font-weight: 600; }
+.chips { display: flex; gap: 6px; }
+.chips span { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--line); }
+.cast-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+
+/* Move key */
+.key { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .key { grid-template-columns: 1fr; } }
+.key article { padding: 14px; border-top: 3px solid var(--line); min-width: 0; }
+.key h3 { margin: 0 0 4px; font-family: var(--display); font-weight: 400; font-size: 22px; }
+.key dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 8px 0 0; font-size: 13px; }
+.key dt { color: var(--muted); }
+.key dd { margin: 0; font-variant-numeric: tabular-nums; }
+.reactions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .reactions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.reactions div { padding: 12px; background: var(--panel); border-radius: 10px; min-width: 0; font-size: 13px; }
+.reactions strong { display: block; font-family: var(--display); font-weight: 400; font-size: 20px; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; direction: ltr; unicode-bidi: embed; }
+</style>
+
+<div class="wrap" dir="rtl" lang="ar">
+  <header>
+    <span class="eyebrow">مقترح الشكل البصري · سؤال ٧ في وثيقة التصميم</span>
+    <h1>الشخصيات والحركات</h1>
+    <p class="lede">مسرح برنامج مواهب، وشخصيات كرتونية تفتح فمها مع صوتك الحقيقي. الشخصيات شكل فقط بدون أي فرق في القوة (لا ادفع لتفوز)؛ الحركة تأتي من المقطع اللي تغنّيه. جرّب الضربات تحت.</p>
+  </header>
+
+  <section class="stage-box" aria-label="المسرح">
+    <div class="stage"><canvas id="stage" width="1280" height="640"></canvas></div>
+    <div class="pickers">
+      <label for="left">أنت
+        <select id="left"></select>
+      </label>
+      <label for="right">الخصم
+        <select id="right"></select>
+      </label>
+      <label class="acc" for="acc">دقة الغناء <output id="accOut" for="acc">0.85</output>
+        <input id="acc" type="range" min="0" max="1" step="0.01" value="0.85">
+      </label>
+    </div>
+    <div class="controls">
+      <button id="bLight" type="button">خفيفة ♪</button>
+      <button id="bHeavy" type="button">ثقيلة 〰</button>
+      <button id="bPerfect" type="button" class="gold">مثالية ★</button>
+      <button id="bSour" type="button">نشاز</button>
+      <button id="bFinisher" type="button" class="primary">القاضية ×٤</button>
+      <button id="bSing" type="button" aria-pressed="false">غنِّ (الفم)</button>
+      <button id="bDemo" type="button">عرض تلقائي</button>
+      <button id="bReset" type="button">من جديد</button>
+    </div>
+    <p class="readout" id="readout" aria-live="polite">الضرر = الأساس × الجودة^1.5، والجودة = (الدقة − 0.55) ÷ 0.45</p>
+  </section>
+
+  <section aria-labelledby="castTitle">
+    <div class="cast-head">
+      <h2 id="castTitle">الطاقم</h2>
+      <span class="readout">٦ شخصيات · من <code>data/characters.json</code></span>
+    </div>
+    <div class="cast" id="cast"></div>
+  </section>
+
+  <section aria-labelledby="keyTitle" style="display:grid; gap:16px">
+    <h2 id="keyTitle">شكل كل حركة</h2>
+    <div class="key" id="key"></div>
+    <div class="reactions">
+      <div><strong style="color:var(--gold)">مثالية ★</strong>دقة ٠٫٩ أو أكثر: نوتات ذهبية، انفجار نجوم، وشحن مضاعف.</div>
+      <div><strong style="color:var(--sour)">نشاز</strong>تحت العتبة: النوتات تبهت وتطيح في النص، والشخصية تتعرّق. والتبريد ينحسب.</div>
+      <div><strong>؟</strong>كحة أو كلام ما يطابق أي مقطع: الشخصية تهز كتوفها، وما ينحسب شي.</div>
+      <div><strong>K.O.</strong>الخصم يلف ويطير برّا المسرح، وكونفيتي بألوان الفايز.</div>
+    </div>
+  </section>
+
+  <footer>كل الألوان والتوقيتات من <code>data/visuals.json</code>، والشخصيات من <code>data/characters.json</code>. نفس قواعد الرسم مستخدمة في Unity (<code>CharacterPuppet.cs</code>)، فاللي تشوفه هنا هو اللي بيطلع في اللعبة.</footer>
+</div>
+
+<script>
+const DATA = {"_comment": "Cosmetic only (GDD §10: no pay-to-win). The loader rejects any gameplay stat here.", "characters": [{"id": "abu_sawt", "name": {"ar": "أبو صوت", "en": "Abu Sawt"}, "tagline": {"ar": "يحسب نفسه تينور الحارة", "en": "Thinks he's the neighbourhood tenor"}, "body": "pear", "head": "round", "eyes": "dots", "accessory": "mustache", "idle": "sway", "palette": {"primary": "#F28C28", "secondary": "#FFE0B2", "accent": "#8D4A12"}, "lines": {"taunt": {"ar": "اسمع وتعلّم!", "en": "Listen and learn!"}, "win": {"ar": "الصوت صوتي والحارة حارتي", "en": "My voice, my street."}, "lose": {"ar": "الحنجرة تعبانة اليوم", "en": "Throat's tired today."}}, "preview_voice": {"transpose": -12, "vibrato_cents": 45}}, {"id": "diva_noor", "name": {"ar": "نور الديفا", "en": "Diva Noor"}, "tagline": {"ar": "ما تغنّي… تتجلّى", "en": "She doesn't sing. She arrives."}, "body": "tall", "head": "oval", "eyes": "big", "accessory": "sunglasses", "idle": "sway", "palette": {"primary": "#D63384", "secondary": "#FFD6E8", "accent": "#6F1D4B"}, "lines": {"taunt": {"ar": "خلّوا المسرح لي", "en": "Clear the stage."}, "win": {"ar": "شكراً شكراً… بدون تصفيق", "en": "Thank you, no applause please."}, "lose": {"ar": "المايك خربان أكيد", "en": "The mic is broken. Obviously."}}, "preview_voice": {"transpose": 0, "vibrato_cents": 35}}, {"id": "robo_tarab", "name": {"ar": "روبو طرب", "en": "Robo-Tarab"}, "tagline": {"ar": "يطابق اللحن ١٠٠٪… نظرياً", "en": "100% pitch-perfect. In theory."}, "body": "square", "head": "square", "eyes": "visor", "accessory": "antenna", "idle": "jitter", "palette": {"primary": "#20A39E", "secondary": "#CFF5F3", "accent": "#0B4F4C"}, "lines": {"taunt": {"ar": "جاري تحميل الطرب…", "en": "Loading emotion…"}, "win": {"ar": "تمت المهمة. بيب.", "en": "Task complete. Beep."}, "lose": {"ar": "خطأ ٤٠٤: نغمة", "en": "Error 404: note not found"}}, "preview_voice": {"transpose": -5, "vibrato_cents": 0}}, {"id": "qattous", "name": {"ar": "قطّوس", "en": "Qattous"}, "tagline": {"ar": "ماو؟ يعني نشيد الفرح", "en": "Meow? That's Ode to Joy."}, "body": "round", "head": "round", "eyes": "big", "accessory": "cat_ears", "idle": "bounce", "palette": {"primary": "#7E6BC4", "secondary": "#E3DDFB", "accent": "#3A2F6B"}, "lines": {"taunt": {"ar": "ماااو", "en": "Mrrraow."}, "win": {"ar": "بِرررر", "en": "Purrrr."}, "lose": {"ar": "هسسس!", "en": "Hsss!"}}, "preview_voice": {"transpose": 7, "vibrato_cents": 20}}, {"id": "teta_soprano", "name": {"ar": "تيتا سوبرانو", "en": "Teta Soprano"}, "tagline": {"ar": "٩٠ سنة وتكسر الزجاج", "en": "Ninety years old. Breaks glass."}, "body": "pear", "head": "round", "eyes": "dots", "accessory": "glasses_bun", "idle": "bob", "palette": {"primary": "#5FA35F", "secondary": "#DFF2DF", "accent": "#2F5A2F"}, "lines": {"taunt": {"ar": "تعال يا حبيبي أعلّمك", "en": "Come here, dear, let me teach you."}, "win": {"ar": "زمان كنا نغني أحسن", "en": "We sang better in my day."}, "lose": {"ar": "وين نظارتي؟", "en": "Where are my glasses?"}}, "preview_voice": {"transpose": 3, "vibrato_cents": 70}}, {"id": "chef_dandana", "name": {"ar": "الشيف دندنة", "en": "Chef Dandana"}, "tagline": {"ar": "يدندن وهو يطبخ… ويطبخك", "en": "Hums while he cooks. Cooks you."}, "body": "round", "head": "round", "eyes": "sleepy", "accessory": "chef_hat", "idle": "bob", "palette": {"primary": "#E04E39", "secondary": "#FFE1DB", "accent": "#7A2216"}, "lines": {"taunt": {"ar": "الطبخة على نار هادية", "en": "Simmering…"}, "win": {"ar": "صحتين وعافية", "en": "Bon appétit."}, "lose": {"ar": "احترقت الطبخة", "en": "Burnt the dish."}}, "preview_voice": {"transpose": -9, "vibrato_cents": 25}}]};
+const VIS = {"_comment": "Presentation timings and styles. Cosmetic only — gameplay lives in moves.json / battle.json.", "stage": {"background_top": "#1B1036", "background_bottom": "#3B1F5E", "floor": "#2A1A40", "spotlight": "#FFF4C2", "curtain": "#8E1B3A"}, "face": {"ink": "#1A1024", "mouth": "#2A0F1F", "tongue": "#E86A7A", "sweat": "#9FD8FF", "lens": "#120A18"}, "bubble": {"background": "#F6EFFF", "text": "#1B1036"}, "tiers": {"sour_color": "#8A8F98", "hit_color": "#FFFFFF", "perfect_color": "#FFD23F"}, "moves": {"light": {"projectile": "notes", "count": 3, "travel_ms": 450, "size": 0.35, "shake": 0.05}, "heavy": {"projectile": "wave", "count": 1, "travel_ms": 650, "size": 1.0, "shake": 0.18}, "finisher": {"projectile": "beam", "count": 1, "travel_ms": 300, "size": 1.6, "shake": 0.4, "hold_ms": 900}}, "ko": {"spin_turns": 3, "fly_ms": 900, "confetti": 60}, "singing": {"mouth_min_db": -55, "mouth_max_db": -15, "notes_per_sec": 4}, "line_ms": 2200};
+const MOVES = [{"slot": "light", "min_ms": 1000, "max_ms": 2500, "base_damage": 8, "charge_gain": 10, "threshold": 0.55, "cooldown_ms": 1500}, {"slot": "heavy", "min_ms": 3000, "max_ms": 6000, "base_damage": 25, "charge_gain": 20, "threshold": 0.55, "cooldown_ms": 4000}, {"slot": "finisher", "min_ms": 1000, "max_ms": 2000, "repeat_count": 4, "window_ms": 8000, "per_rep_threshold": 0.6, "charge_required": 100, "base_damage": 50, "ko_below_hp": 50, "max_tempo_ratio": 1.6}];
+const CH = DATA.characters;
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------- puppet: same geometry as unity/Assets/VoiceBattle/Scripts/CharacterPuppet.cs ---------- */
+const BODY = {
+  round:  { cy: .62, rx: .62, ry: .56, top: 1.18, half: .62 },
+  tall:   { cy: .82, rx: .45, ry: .78, top: 1.60, half: .45 },
+  square: { cy: .60, rx: .58, ry: .53, top: 1.12, half: .58, box: true },
+  pear:   { cy: .52, rx: .68, ry: .50, top: 1.30, half: .68, pear: true },
+};
+const HEAD = { round: { rx: .46, ry: .46 }, oval: { rx: .40, ry: .52 }, square: { rx: .45, ry: .41, box: true } };
+
+function shade(hex, k) {
+  const n = parseInt(hex.slice(1), 16), r = n >> 16, g = n >> 8 & 255, b = n & 255;
+  const f = v => Math.max(0, Math.min(255, Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k)));
+  return `rgb(${f(r)},${f(g)},${f(b)})`;
+}
+function ell(c, x, y, rx, ry, rot = 0) { c.beginPath(); c.ellipse(x, y, Math.abs(rx), Math.abs(ry), rot, 0, Math.PI * 2); c.fill(); }
+function rrect(c, x, y, w, h, r) { c.beginPath(); c.roundRect(x - w / 2, y - h / 2, w, h, r); c.fill(); }
+
+/* state: { t, mouth, facing, pose, poseT, flash, blinkPhase } ; units: 1 = one "head-ish" unit, y up from the feet */
+function drawPuppet(c, ch, s) {
+  const P = ch.palette, b = BODY[ch.body], h = HEAD[ch.head];
+  c.save();
+  c.scale(s.facing, -1); // y up
+  const dark = shade(P.primary, -0.22);
+
+  // feet
+  c.fillStyle = P.accent; ell(c, -.28, .07, .2, .09); ell(c, .28, .07, .2, .09);
+  // arms (front arm rises on attack)
+  const raise = s.pose === "attack" || s.pose === "win" ? 1.2 * envelope(s.poseT, .12, .35) + (s.pose === "win" ? 1.2 : 0) : 0;
+  c.fillStyle = dark;
+  ell(c, -(b.half + .06), b.cy + .05, .12, .26, .3);
+  c.save(); c.translate(b.half + .02, b.cy + .22); c.rotate(-.3 - raise); ell(c, 0, -.2, .12, .26); c.restore();
+  // body
+  c.fillStyle = P.primary;
+  if (b.box) rrect(c, 0, b.cy, b.rx * 2, b.ry * 2, .18);
+  else ell(c, 0, b.cy, b.rx, b.ry);
+  if (b.pear) ell(c, 0, .95, .46, .40);
+  c.fillStyle = P.secondary; ell(c, 0, b.cy * .85, b.rx * .52, b.ry * .46);
+
+  // head
+  const hy = b.top + h.ry * .8;
+  c.save(); c.translate(0, hy);
+  if (s.pose === "sing") c.rotate(.06 * Math.sin(s.t * 6));
+  if (ch.accessory === "glasses_bun") { c.fillStyle = shade(P.secondary, -0.15); ell(c, 0, h.ry + .12, .2, .17); }
+  if (ch.accessory === "cat_ears") {
+    for (const sx of [-1, 1]) {
+      c.fillStyle = P.primary; c.beginPath(); c.moveTo(sx * .14, h.ry * .7); c.lineTo(sx * .44, h.ry * .55); c.lineTo(sx * .36, h.ry + .26); c.closePath(); c.fill();
+      c.fillStyle = P.secondary; c.beginPath(); c.moveTo(sx * .2, h.ry * .75); c.lineTo(sx * .38, h.ry * .63); c.lineTo(sx * .34, h.ry + .12); c.closePath(); c.fill();
+    }
+  }
+  c.fillStyle = P.primary;
+  if (h.box) rrect(c, 0, 0, h.rx * 2, h.ry * 2, .16); else ell(c, 0, 0, h.rx, h.ry);
+  // cheeks
+  c.globalAlpha = .55; c.fillStyle = P.secondary; ell(c, -.25, -.1, .08, .06); ell(c, .25, -.1, .08, .06); c.globalAlpha = 1;
+
+  // eyes
+  const blink = (s.blinkPhase % 3.6) < .12 ? .12 : 1;
+  const lookX = .03;
+  if (ch.eyes === "visor") {
+    c.fillStyle = P.accent; rrect(c, 0, .07, .68, .2 * Math.max(blink, .5), .1);
+    c.fillStyle = s.pose === "sing" ? "#fff" : P.secondary; rrect(c, lookX, .07, .5, .05, .025);
+  } else {
+    for (const sx of [-1, 1]) {
+      const ex = sx * .16, ey = .07;
+      if (ch.eyes === "big") { c.fillStyle = "#fff"; ell(c, ex, ey, .13, .13 * blink); c.fillStyle = VIS.face.ink; ell(c, ex + lookX, ey - .01, .065, .065 * blink); }
+      else if (ch.eyes === "sleepy") { c.fillStyle = VIS.face.ink; ell(c, ex, ey - .01, .09, .035 * blink); }
+      else { c.fillStyle = VIS.face.ink; ell(c, ex, ey, .065, .065 * blink); }
+    }
+  }
+  // mouth (lip-sync)
+  const m = s.mouth;
+  c.fillStyle = VIS.face.mouth; ell(c, 0, -.2, .12 + .04 * m, .025 + .13 * m);
+  if (m > .3) { c.fillStyle = VIS.face.tongue; ell(c, 0, -.2 - .07 * m, .07 * m, .035 * m); }
+  // accessories on the face
+  switch (ch.accessory) {
+    case "mustache": c.fillStyle = P.accent; ell(c, -.11, -.08, .15, .055, -.25); ell(c, .11, -.08, .15, .055, .25); break;
+    case "sunglasses":
+      c.fillStyle = VIS.face.lens; rrect(c, -.16, .07, .27, .15, .05); rrect(c, .16, .07, .27, .15, .05); rrect(c, 0, .1, .12, .03, .01);
+      c.fillStyle = "rgba(255,255,255,.5)"; rrect(c, -.2, .1, .07, .03, .01); rrect(c, .12, .1, .07, .03, .01); break;
+    case "antenna":
+      c.strokeStyle = P.accent; c.lineWidth = .04; c.beginPath(); c.moveTo(0, h.ry); c.lineTo(0, h.ry + .3); c.stroke();
+      c.fillStyle = s.pose === "sing" ? "#fff" : P.secondary; ell(c, 0, h.ry + .33, .07, .07); break;
+    case "glasses_bun":
+      c.strokeStyle = P.accent; c.lineWidth = .035; for (const sx of [-1, 1]) { c.beginPath(); c.arc(sx * .16, .07, .11, 0, Math.PI * 2); c.stroke(); } break;
+    case "chef_hat":
+      c.fillStyle = "#FFFFFF"; rrect(c, 0, h.ry + .02, .62, .14, .04); ell(c, -.16, h.ry + .24, .17, .16); ell(c, .16, h.ry + .24, .17, .16); ell(c, 0, h.ry + .34, .19, .17); break;
+  }
+  c.restore();
+
+  // sour sweat drop
+  if (s.pose === "sour") { c.fillStyle = VIS.face.sweat; ell(c, .42, hy + .2 - .3 * ((s.poseT * 1.2) % 1), .05, .08); }
+  // hit flash
+  if (s.flash > 0) {
+    c.globalCompositeOperation = "source-atop"; c.globalAlpha = s.flash; c.fillStyle = "#fff"; c.fillRect(-2, -1, 4, 4);
+    c.globalAlpha = 1; c.globalCompositeOperation = "source-over";
+  }
+  c.restore();
+}
+function envelope(t, rise, fall) { return t < 0 ? 0 : t < rise ? t / rise : t < rise + fall ? 1 - (t - rise) / fall : 0; }
+
+function idleOffset(ch, t) {
+  switch (ch.idle) {
+    case "bob": return { x: 0, y: .03 * Math.sin(t * 6.9), r: 0 };
+    case "sway": return { x: 0, y: .01 * Math.sin(t * 5), r: .045 * Math.sin(t * 5) };
+    case "bounce": return { x: 0, y: .07 * Math.abs(Math.sin(t * 8.8)), r: 0 };
+    case "jitter": return { x: .012 * Math.sign(Math.sin(t * 37)), y: .01 * Math.sign(Math.sin(t * 23)), r: 0 };
+  }
+  return { x: 0, y: 0, r: 0 };
+}
+
+/* ---------- cast cards ---------- */
+const cast = document.getElementById("cast");
+const cards = [];
+for (const ch of CH) {
+  const el = document.createElement("article");
+  el.className = "card";
+  el.innerHTML = `<canvas width="400" height="300" role="img" aria-label="${ch.name.ar}"></canvas>
+    <div><h3>${ch.name.ar}</h3><span class="en" dir="ltr">${ch.name.en} · ${ch.tagline.en}</span></div>
+    <div style="display:grid; gap:8px; align-content:start">
+      <p class="tag">${ch.tagline.ar}</p>
+      <ul class="lines">
+        <li><b>بداية:</b> ${ch.lines.taunt.ar}</li>
+        <li><b>فوز:</b> ${ch.lines.win.ar}</li>
+        <li><b>خسارة:</b> ${ch.lines.lose.ar}</li>
+      </ul>
+      <div class="chips" aria-label="الألوان">${["primary", "secondary", "accent"].map(k => `<span style="background:${ch.palette[k]}" title="${k} ${ch.palette[k]}"></span>`).join("")}</div>
+    </div>`;
+  cast.appendChild(el);
+  cards.push({ ch, c: el.querySelector("canvas").getContext("2d"), phase: Math.random() * 10 });
+}
+
+/* ---------- move key ---------- */
+const keyEl = document.getElementById("key");
+const SLOT_AR = { light: "خفيفة", heavy: "ثقيلة", finisher: "القاضية" };
+const PROJ_AR = { notes: "نوتات طايرة", wave: "موجة صوت", beam: "شعاع الكورس" };
+for (const slot of ["light", "heavy", "finisher"]) {
+  const m = MOVES.find(x => x.slot === slot), v = VIS.moves[slot];
+  const a = document.createElement("article");
+  a.innerHTML = `<h3>${SLOT_AR[slot]}</h3><div>${PROJ_AR[v.projectile]}${slot === "finisher" ? " بعد ٤ حلقات شحن" : ""}</div>
+    <dl>
+      <dt>طول المقطع</dt><dd>${(m.min_ms / 1000).toLocaleString("ar")}–${(m.max_ms / 1000).toLocaleString("ar")} ث${slot === "finisher" ? " × ٤" : ""}</dd>
+      <dt>الضرر الأساسي</dt><dd>${m.base_damage.toLocaleString("ar")}${slot === "finisher" ? " (أو K.O. تحت ٥٠)" : ""}</dd>
+      <dt>${slot === "finisher" ? "يحتاج" : "التبريد"}</dt><dd>${slot === "finisher" ? "شحن ١٠٠" : (m.cooldown_ms / 1000).toLocaleString("ar") + " ث"}</dd>
+      <dt>وقت الطيران</dt><dd>${v.travel_ms.toLocaleString("ar")} ms</dd>
+    </dl>`;
+  keyEl.appendChild(a);
+}
+
+/* ---------- stage ---------- */
+const cv = document.getElementById("stage"), cx = cv.getContext("2d");
+const W = cv.width, H = cv.height, U = 120, FLOOR_Y = H * .82;
+const selL = document.getElementById("left"), selR = document.getElementById("right");
+for (const sel of [selL, selR]) for (const ch of CH) sel.add(new Option(ch.name.ar, ch.id));
+selL.value = CH[0].id; selR.value = CH[2].id;
+const acc = document.getElementById("acc"), accOut = document.getElementById("accOut"), readout = document.getElementById("readout");
+acc.addEventListener("input", () => accOut.value = (+acc.value).toFixed(2));
+
+const byId = id => CH.find(c => c.id === id);
+const F = [
+  { x: W * .27, facing: 1, hp: 100, pose: "idle", poseT: 0, flash: 0, mouth: 0, ko: 0, rings: 0, bubble: null },
+  { x: W * .73, facing: -1, hp: 100, pose: "idle", poseT: 0, flash: 0, mouth: 0, ko: 0, rings: 0, bubble: null },
+];
+let fx = [], shake = 0, singing = false, demoTimer = null, T = 0;
+const say = (i, text, ms = VIS.line_ms) => { F[i].bubble = { text, until: T + ms / 1000 }; };
+function reset() {
+  for (const f of F) Object.assign(f, { hp: 100, pose: "idle", poseT: 0, flash: 0, ko: 0, rings: 0 });
+  fx = []; shake = 0;
+  say(0, byId(selL.value).lines.taunt.ar); setTimeout(() => say(1, byId(selR.value).lines.taunt.ar), 700);
+}
+selL.addEventListener("change", reset); selR.addEventListener("change", reset);
+
+const quality = a => Math.max(0, Math.min(1, (a - .55) / .45));
+const mouthPos = (i) => ({ x: F[i].x + F[i].facing * .05 * U, y: FLOOR_Y - (BODY[byId(i ? selR.value : selL.value).body].top + .3) * U });
+
+function attack(slot, a, from = 0) {
+  const to = 1 - from, A = F[from], B = F[to];
+  if (A.ko || B.ko) return;
+  const m = MOVES.find(x => x.slot === slot), v = VIS.moves[slot];
+  const q = quality(a), dmg = slot === "finisher" ? (B.hp < m.ko_below_hp ? B.hp : m.base_damage) : m.base_damage * Math.pow(q, 1.5);
+  const tier = a >= .9 ? "perfect" : q > 0 ? "hit" : "sour";
+  const color = tier === "perfect" ? VIS.tiers.perfect_color : tier === "sour" ? VIS.tiers.sour_color : byId(from ? selR.value : selL.value).palette.secondary;
+  A.pose = "attack"; A.poseT = 0; A.mouth = 1;
+  const start = mouthPos(from), end = { x: B.x, y: FLOOR_Y - 1.1 * U };
+  if (v.projectile === "notes") for (let k = 0; k < v.count; k++) fx.push({ kind: "note", t: -k * .09, dur: v.travel_ms / 1000, start, end, color, sour: tier === "sour", size: v.size, arc: 60 + k * 25 });
+  else if (v.projectile === "wave") fx.push({ kind: "wave", t: 0, dur: v.travel_ms / 1000, start, end, color, sour: tier === "sour", size: v.size });
+  else fx.push({ kind: "beam", t: 0, dur: (v.travel_ms + v.hold_ms) / 1000, start, end, color: VIS.tiers.perfect_color, size: v.size });
+  const land = v.travel_ms / 1000 + (slot === "finisher" ? .15 : 0);
+  setTimeout(() => {
+    if (tier === "sour") {
+      A.pose = "sour"; A.poseT = 0;
+      fx.push({ kind: "text", t: 0, dur: 1.1, x: A.x, y: FLOOR_Y - 2.6 * U, text: "نشاز!", color: VIS.tiers.sour_color });
+      readout.textContent = `دقة ${a.toFixed(2)} تحت العتبة 0.55: فشل، بدون ضرر، والتبريد ينحسب.`;
+      return;
+    }
+    B.hp = Math.max(0, B.hp - dmg); B.pose = "hit"; B.poseT = 0; B.flash = .9; shake = Math.max(shake, v.shake);
+    fx.push({ kind: "text", t: 0, dur: 1, x: B.x, y: FLOOR_Y - 2.5 * U, text: "−" + dmg.toFixed(1).replace(".0", ""), color: "#fff" });
+    if (tier === "perfect") {
+      fx.push({ kind: "burst", t: 0, dur: .8, x: B.x, y: FLOOR_Y - 1.2 * U, color: VIS.tiers.perfect_color });
+      fx.push({ kind: "text", t: 0, dur: 1.2, x: A.x, y: FLOOR_Y - 2.9 * U, text: "مثالية ★", color: VIS.tiers.perfect_color });
+    }
+    readout.textContent = slot === "finisher"
+      ? `القاضية: ${dmg.toFixed(0)} ضرر${dmg === B.hp + dmg && dmg < 50 ? " (K.O. لأن صحته تحت ٥٠)" : ""}.`
+      : `دقة ${a.toFixed(2)} → جودة ${q.toFixed(2)} → ${m.base_damage} × ${q.toFixed(2)}^1.5 = ${dmg.toFixed(1)} ضرر${tier === "perfect" ? "، وشحن مضاعف" : ""}.`;
+    if (B.hp <= 0) knockout(from);
+  }, land * 1000);
+}
+function finisher(from = 0) {
+  const A = F[from];
+  if (A.ko || F[1 - from].ko) return;
+  A.rings = 0;
+  for (let r = 1; r <= 4; r++) setTimeout(() => { A.rings = r; A.pose = "sing"; A.poseT = 0; A.mouth = 1; fx.push({ kind: "ring", t: 0, dur: .5, x: A.x, y: FLOOR_Y - 1.1 * U, color: VIS.tiers.perfect_color }); }, (reduced ? 150 : 520) * r);
+  setTimeout(() => { attack("finisher", 1, from); setTimeout(() => A.rings = 0, 600); }, (reduced ? 150 : 520) * 5);
+}
+function knockout(winner) {
+  const L = F[1 - winner], Wn = F[winner];
+  setTimeout(() => {
+    L.ko = 0.0001; L.pose = "ko"; shake = .5;
+    const pal = byId(winner ? selR.value : selL.value).palette;
+    for (let k = 0; k < VIS.ko.confetti; k++) fx.push({ kind: "confetti", t: 0, dur: 2.2, x: W / 2 + (Math.random() - .5) * W * .8, y: -20 - Math.random() * 200, vx: (Math.random() - .5) * 80, color: [pal.primary, pal.secondary, pal.accent, VIS.tiers.perfect_color][k % 4], rot: Math.random() * 6 });
+    setTimeout(() => { Wn.pose = "win"; Wn.poseT = 0; say(winner, byId(winner ? selR.value : selL.value).lines.win.ar, 3000); say(1 - winner, byId(winner ? selL.value : selR.value).lines.lose.ar, 3000); }, VIS.ko.fly_ms + 300);
+  }, 100);
+}
+
+document.getElementById("bLight").onclick = () => attack("light", +acc.value);
+document.getElementById("bHeavy").onclick = () => attack("heavy", +acc.value);
+document.getElementById("bPerfect").onclick = () => { acc.value = .96; accOut.value = "0.96"; attack("light", .96); };
+document.getElementById("bSour").onclick = () => attack("light", .3);
+document.getElementById("bFinisher").onclick = () => finisher(0);
+document.getElementById("bReset").onclick = reset;
+const bSing = document.getElementById("bSing");
+bSing.onclick = () => { singing = !singing; bSing.setAttribute("aria-pressed", singing); F[0].pose = singing ? "sing" : "idle"; };
+document.getElementById("bDemo").onclick = () => {
+  if (demoTimer) { clearTimeout(demoTimer); demoTimer = null; }
+  reset();
+  const script = [[1200, () => attack("light", .86)], [2200, () => attack("heavy", .8, 1)], [2400, () => attack("heavy", .95)], [2200, () => attack("light", .3, 1)],
+                  [2000, () => attack("light", .97)], [2200, () => attack("heavy", .9)], [2600, () => finisher(0)]];
+  let i = 0; const step = () => { if (i >= script.length) return; const [d, f] = script[i++]; demoTimer = setTimeout(() => { f(); step(); }, d); }; step();
+};
+
+function drawStage(dt) {
+  const g = cx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, VIS.stage.background_top); g.addColorStop(1, VIS.stage.background_bottom);
+  cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+  // curtains
+  cx.fillStyle = VIS.stage.curtain;
+  for (const side of [0, 1]) { cx.save(); if (side) { cx.translate(W, 0); cx.scale(-1, 1); } cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(W * .09, 0); cx.quadraticCurveTo(W * .05, H * .45, W * .1, FLOOR_Y); cx.lineTo(0, FLOOR_Y); cx.fill(); cx.restore(); }
+  cx.fillRect(0, 0, W, H * .06);
+  // spotlights
+  for (const f of F) {
+    const s = cx.createRadialGradient(f.x, FLOOR_Y, 10, f.x, FLOOR_Y - 120, 360); s.addColorStop(0, "rgba(255,244,194,.34)"); s.addColorStop(1, "rgba(255,244,194,0)");
+    cx.fillStyle = s; cx.beginPath(); cx.moveTo(f.x - 40, 0); cx.lineTo(f.x + 40, 0); cx.lineTo(f.x + 230, FLOOR_Y + 30); cx.lineTo(f.x - 230, FLOOR_Y + 30); cx.fill();
+  }
+  // floor
+  cx.fillStyle = VIS.stage.floor; cx.fillRect(0, FLOOR_Y, W, H - FLOOR_Y);
+  cx.fillStyle = "rgba(255,244,194,.12)"; for (const f of F) { cx.beginPath(); cx.ellipse(f.x, FLOOR_Y + 8, 120, 16, 0, 0, Math.PI * 2); cx.fill(); }
+}
+function drawHud() {
+  [selL.value, selR.value].forEach((id, i) => {
+    const ch = byId(id), f = F[i], w = W * .36, x = i ? W - 40 - w : 40, y = 34;
+    cx.fillStyle = "rgba(0,0,0,.35)"; cx.beginPath(); cx.roundRect(x, y, w, 16, 8); cx.fill();
+    cx.fillStyle = ch.palette.primary; const fw = w * f.hp / 100; cx.beginPath(); cx.roundRect(i ? x + w - fw : x, y, fw, 16, 8); cx.fill();
+    cx.fillStyle = "#F6EFFF"; cx.font = "28px Lalezar, sans-serif"; cx.textAlign = i ? "left" : "right"; cx.direction = "rtl";
+    cx.fillText(`${ch.name.ar}  ${Math.ceil(f.hp)}`, i ? x : x + w, y + 50);
+  });
+}
+function drawFx(dt) {
+  fx = fx.filter(e => (e.t += dt) < e.dur);
+  for (const e of fx) {
+    if (e.t < 0) continue;
+    const p = e.t / e.dur;
+    cx.save();
+    if (e.kind === "note") {
+      let k = Math.min(1, p), x = e.start.x + (e.end.x - e.start.x) * k, y = e.start.y + (e.end.y - e.start.y) * k - Math.sin(k * Math.PI) * e.arc;
+      if (e.sour && k > .5) { y += (k - .5) * 2 * 260; x = e.start.x + (e.end.x - e.start.x) * .5 + (k - .5) * 40; }
+      cx.globalAlpha = e.sour && k > .5 ? 1 - (k - .5) * 1.6 : 1;
+      cx.translate(x, y); cx.rotate(e.sour ? k * 2 : Math.sin(e.t * 12) * .2); cx.scale(e.size * 2.6, e.size * 2.6);
+      cx.fillStyle = e.color; cx.beginPath(); cx.ellipse(0, 0, 9, 7, -.4, 0, Math.PI * 2); cx.fill();
+      cx.fillRect(6, -26, 3, 26); cx.beginPath(); cx.moveTo(9, -26); cx.quadraticCurveTo(20, -20, 16, -8); cx.lineTo(9, -18); cx.fill();
+    } else if (e.kind === "wave") {
+      const x = e.start.x + (e.end.x - e.start.x) * p, y = e.start.y + (e.end.y - e.start.y) * p;
+      cx.strokeStyle = e.color; cx.globalAlpha = e.sour ? .5 : .95;
+      for (let r = 0; r < 3; r++) { cx.lineWidth = 10 - r * 3; cx.beginPath(); const rad = 40 + r * 26 + p * 30; const dir = e.end.x > e.start.x ? 0 : Math.PI; cx.arc(x - (dir ? -1 : 1) * r * 22, y, rad * e.size, dir - .8, dir + .8); cx.stroke(); }
+    } else if (e.kind === "beam") {
+      const grow = Math.min(1, e.t / .3), fade = p > .8 ? 1 - (p - .8) / .2 : 1;
+      cx.globalAlpha = fade; const x0 = e.start.x, x1 = x0 + (e.end.x - x0) * grow, y = e.start.y + 30;
+      const bg = cx.createLinearGradient(0, y - 40, 0, y + 40); bg.addColorStop(0, "rgba(255,210,63,0)"); bg.addColorStop(.5, e.color); bg.addColorStop(1, "rgba(255,210,63,0)");
+      cx.fillStyle = bg; cx.fillRect(Math.min(x0, x1), y - 44 * e.size / 1.6, Math.abs(x1 - x0), 88 * e.size / 1.6);
+      cx.fillStyle = "#fff"; cx.fillRect(Math.min(x0, x1), y - 6, Math.abs(x1 - x0), 12);
+    } else if (e.kind === "ring") {
+      cx.strokeStyle = e.color; cx.globalAlpha = 1 - p; cx.lineWidth = 6; cx.beginPath(); cx.arc(e.x, e.y, 60 + p * 140, 0, Math.PI * 2); cx.stroke();
+    } else if (e.kind === "burst") {
+      cx.fillStyle = e.color; cx.globalAlpha = 1 - p;
+      for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2, r = 30 + p * 170; star(cx, e.x + Math.cos(a) * r, e.y + Math.sin(a) * r, 12 * (1 - p * .5)); }
+    } else if (e.kind === "text") {
+      cx.globalAlpha = p > .7 ? 1 - (p - .7) / .3 : 1; cx.fillStyle = e.color; cx.font = "54px Lalezar, sans-serif"; cx.textAlign = "center"; cx.direction = "rtl";
+      cx.fillText(e.text, e.x, e.y - p * 40);
+    } else if (e.kind === "confetti") {
+      cx.fillStyle = e.color; cx.translate(e.x + e.vx * e.t, e.y + 380 * e.t); cx.rotate(e.rot + e.t * 8); cx.fillRect(-6, -3, 12, 6);
+    }
+    cx.restore();
+  }
+}
+function star(c, x, y, r) { c.beginPath(); for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 - Math.PI / 2, rr = i % 2 ? r * .45 : r; c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } c.fill(); }
+function bubble(i) {
+  const f = F[i], b = f.bubble; if (!b || T > b.until || f.ko) return;
+  const ch = byId(i ? selR.value : selL.value);
+  cx.font = "30px Lalezar, sans-serif"; cx.direction = "rtl"; cx.textAlign = "center";
+  const w = cx.measureText(b.text).width + 40, x = Math.max(w / 2 + 20, Math.min(W - w / 2 - 20, f.x)), y = FLOOR_Y - (BODY[ch.body].top + 1.55) * U;
+  cx.fillStyle = VIS.bubble.background; cx.beginPath(); cx.roundRect(x - w / 2, y - 34, w, 52, 18); cx.fill();
+  cx.beginPath(); cx.moveTo(f.x - 10, y + 16); cx.lineTo(f.x + 12, y + 16); cx.lineTo(f.x, y + 34); cx.fill();
+  cx.fillStyle = VIS.bubble.text; cx.fillText(b.text, x, y + 2);
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now; T += dt;
+  cx.save();
+  if (shake > 0) { cx.translate((Math.random() - .5) * shake * 40, (Math.random() - .5) * shake * 30); shake = Math.max(0, shake - dt * 1.6); }
+  drawStage(dt);
+  [selL.value, selR.value].forEach((id, i) => {
+    const ch = byId(id), f = F[i];
+    f.poseT += dt; f.flash = Math.max(0, f.flash - dt * 4);
+    if (["attack", "hit", "sour"].includes(f.pose) && f.poseT > .9) f.pose = i === 0 && singing ? "sing" : "idle";
+    const target = f.pose === "sing" ? (.35 + .45 * Math.abs(Math.sin(T * 9)) * Math.abs(Math.sin(T * 2.3))) : f.pose === "attack" ? Math.max(0, 1 - f.poseT * 2) : f.pose === "win" ? .7 : 0;
+    f.mouth += (target - f.mouth) * Math.min(1, dt * 14);
+    let off = reduced ? { x: 0, y: 0, r: 0 } : idleOffset(ch, T + i);
+    let x = f.x + off.x * U, y = FLOOR_Y - off.y * U, rot = off.r, sx = 1, sy = 1;
+    if (f.pose === "attack") x += f.facing * .35 * U * envelope(f.poseT, .12, .35);
+    if (f.pose === "hit") { x -= f.facing * .25 * U * Math.max(0, 1 - f.poseT * 2.5); rot -= f.facing * .1 * Math.max(0, 1 - f.poseT * 3); }
+    if (f.pose === "sour") { sy = .93; rot += -f.facing * .08; }
+    if (f.pose === "win") y -= Math.abs(Math.sin(f.poseT * 7)) * .25 * U;
+    if (f.pose === "ko") { f.ko += dt; const k = f.ko / (VIS.ko.fly_ms / 1000); rot += k * VIS.ko.spin_turns * Math.PI * 2 * -f.facing; x -= f.facing * k * W * .5; y -= k * H * .9 - 0; if (k > 1.2) { f.ko = 99; } }
+    if (f.ko === 99) return;
+    cx.save(); cx.translate(x, y); cx.rotate(rot); cx.scale(U * sx, U * sy);
+    drawPuppet(cx, ch, { t: T, mouth: f.mouth, facing: f.facing, pose: f.pose, poseT: f.poseT, flash: f.flash, blinkPhase: T + i * 1.3 });
+    cx.restore();
+    // finisher rings
+    if (f.rings > 0) { cx.strokeStyle = VIS.tiers.perfect_color; cx.lineWidth = 8; for (let r = 0; r < f.rings; r++) { cx.beginPath(); cx.arc(f.x, FLOOR_Y - 1.1 * U, 150, -Math.PI / 2 + r * Math.PI / 2 + .08, -Math.PI / 2 + (r + 1) * Math.PI / 2 - .08); cx.stroke(); } }
+  });
+  drawFx(dt);
+  bubble(0); bubble(1);
+  drawHud();
+  cx.restore();
+
+  for (const k of cards) {
+    const c = k.c; c.clearRect(0, 0, 400, 300);
+    const off = reduced ? { x: 0, y: 0, r: 0 } : idleOffset(k.ch, T + k.phase);
+    c.save(); c.translate(200 + off.x * 95, 280 - off.y * 95); c.rotate(off.r); c.scale(95, 95);
+    drawPuppet(c, k.ch, { t: T, mouth: .15 + .1 * Math.sin(T * 2 + k.phase), facing: 1, pose: "idle", poseT: 0, flash: 0, blinkPhase: T + k.phase });
+    c.restore();
+  }
+  requestAnimationFrame(frame);
+}
+reset();
+requestAnimationFrame(frame);
+</script>

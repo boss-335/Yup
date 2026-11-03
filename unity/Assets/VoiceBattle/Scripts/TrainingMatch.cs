@@ -22,6 +22,11 @@ namespace VoiceBattle.UnityLayer
         public string lightSnippet = "fur_elise_a";
         public string heavySnippet = "ode_to_joy_a";
         public string finisherSnippet = "beethoven5_a";
+        [Tooltip("Character ids from data/characters.json (cosmetic only)")]
+        public string playerCharacter = "abu_sawt";
+        public string botCharacter = "robo_tarab";
+        [Tooltip("Speech bubbles and popups in Arabic (false = English)")]
+        public bool arabic = true;
         public int botSeed = 1;
         [Tooltip("Hold this key to sing instead of automatic voice detection")]
         public bool pushToSing;
@@ -29,6 +34,7 @@ namespace VoiceBattle.UnityLayer
         public GameData? Data { get; private set; }
         public TrainingSession? Session { get; private set; }
         public MicCapture? Mic { get; private set; }
+        public StageView? Stage { get; private set; }
         public TakeResult? LastTake { get; private set; }
         public string? Error { get; private set; }
         public bool Analysing => _pending > 0;
@@ -45,7 +51,8 @@ namespace VoiceBattle.UnityLayer
                 Data = GameData.Load(Path.Combine(Application.streamingAssetsPath, "data"));
                 foreach (var r in Data.RejectedPacks) Debug.LogWarning(r.Message);
                 foreach (var p in Data.Packs) foreach (var w in p.Warnings) Debug.LogWarning($"pack {p.Id}: {w}");
-                Session = new TrainingSession(Data, Data.Loadout(lightSnippet, heavySnippet, finisherSnippet), botSeed: botSeed);
+                Session = new TrainingSession(Data, Data.Loadout(lightSnippet, heavySnippet, finisherSnippet), botSeed: botSeed,
+                                              playerCharacter: playerCharacter, botCharacter: botCharacter);
             }
             catch (Exception ex)
             {
@@ -53,6 +60,17 @@ namespace VoiceBattle.UnityLayer
                 Debug.LogError(ex);
                 return;
             }
+
+            var stage = new GameObject("Stage").AddComponent<StageView>();
+            Stage = stage;
+            stage.arabic = arabic;
+            stage.Build(Data.Visuals, new[]
+            {
+                (TrainingSession.PlayerId, Session.PlayerCharacter),
+                (TrainingSession.BotId, Session.BotCharacter),
+            });
+            var presenter = Session.Presenter;
+            Session.Battle.EventRaised += e => stage.Enqueue(presenter.From(e));
 
             Mic = GetComponent<MicCapture>();
             Mic.TakeCaptured += OnTake;
@@ -94,12 +112,27 @@ namespace VoiceBattle.UnityLayer
                 if (Keys.PushToSingDown()) Mic.BeginPushToSing();
                 if (Keys.PushToSingUp()) Mic.EndPushToSing();
             }
+            long now = Mic.Capture.NowMs;
+            if (Stage != null)
+            {
+                // Lip-sync: the player's mouth follows the mic while a take is being captured.
+                var me = Stage.Puppet(TrainingSession.PlayerId);
+                float target = Mic.Capture.InPerformance ? Data!.Visuals.MouthOpen(Mic.LevelDb) : 0f;
+                me.Mouth = Mathf.Lerp(me.Mouth, target, Mathf.Clamp01(Time.deltaTime * 18));
+                if (Mic.Capture.InPerformance && me.Pose == PuppetPose.Idle) me.SetPose(PuppetPose.Sing);
+                if (!Mic.Capture.InPerformance && me.Pose == PuppetPose.Sing) me.SetPose(PuppetPose.Idle);
+                // The bot "sings" briefly around its attacks.
+                var bot = Stage.Puppet(TrainingSession.BotId);
+                bot.Mouth = Mathf.Lerp(bot.Mouth, bot.Pose == PuppetPose.Attack ? 1f : 0f, Mathf.Clamp01(Time.deltaTime * 12));
+                Stage.Tick(now);
+            }
             if (!_started) return;
-            Session.Update(Mic.Capture.NowMs);
+            Session.Update(now);
             while (_done.TryDequeue(out var a))
             {
                 System.Threading.Interlocked.Decrement(ref _pending);
                 LastTake = Session.Apply(a);
+                Stage?.Enqueue(Session.Presenter.FromTake(TrainingSession.PlayerId, LastTake, now));
                 TakeApplied?.Invoke(LastTake);
             }
         }

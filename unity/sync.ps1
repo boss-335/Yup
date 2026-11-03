@@ -12,7 +12,7 @@ New-Item -ItemType Directory -Force $out, "$data/Packs", "$data/midi" | Out-Null
 foreach ($dll in "VoiceMatch.Core", "VoiceBattle.Session", "BattleRules.Core", "System.Text.Json", "System.Text.Encodings.Web", "Microsoft.Bcl.AsyncInterfaces") {
     Copy-Item "$tmp/$dll.dll" $out -Force
 }
-Copy-Item data/match_config.json, data/moves.json, data/battle.json $data -Force
+Copy-Item data/match_config.json, data/moves.json, data/battle.json, data/characters.json, data/visuals.json $data -Force
 Copy-Item data/Packs/*.json "$data/Packs" -Force
 Copy-Item data/midi/*.mid "$data/midi" -Force
 Remove-Item -Recurse -Force $tmp

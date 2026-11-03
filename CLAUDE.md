@@ -7,6 +7,7 @@ Read `docs/voice-battle-gdd.md` (Arabic) §0 first: it is the binding spec. `doc
 ## Status
 - **M0 (match engine) — implemented.** All four acceptance criteria pass on the clean synthetic benchmark and on the harder humanized set (`gen-takes`, docs/m0-report.md §7). Real human recordings are still pending; the owner chose to proceed to M1 meanwhile. When recordings arrive, run `eval --manifest` and fix the engine — M1 only depends on `MatchResult`.
 - **M1 (local combat) — implemented**, see docs/m1-report.md: `BattleRules.Core`, `VoiceBattle.Session` (mic capture, move recognition, training session), `matcher-lab battle`, Unity scripts in `unity/` (compile-checked against stubs only — not yet run in the Editor). Design decisions in m1-report §2 await owner approval. No networking before M2.
+- **Art direction (GDD Q7) — proposed**, see docs/art-direction.md: talent-show stage, 6 cosmetic characters (`data/characters.json`), effect timings in `data/visuals.json`, `BattlePresenter` (events → cues), Unity `StageView`/`CharacterPuppet`/`Shapes`, browser preview `docs/preview/roster.html` built by `tools/preview/build.py`. Awaiting owner approval.
 
 ## Commands
 ```bash
@@ -18,6 +19,7 @@ dotnet run --project tools/matcher-lab -c Release -- gen-takes --out recordings/
 dotnet run --project tools/matcher-lab -c Release -- eval --manifest recordings/humanized/takes.csv
 dotnet run --project tools/matcher-lab -c Release -- battle --skill average   # full V1 match through the real pipeline
 unity/sync.sh                                                  # build DLLs + copy data into the Unity project
+python3 tools/preview/build.py                                 # rebuild docs/preview/roster.html after editing characters/visuals
 ```
 `./build.sh all` (or `.\build.ps1 all`) = restore + build + test + benchmark → `docs/m0-synthetic-results.md`.
 
@@ -35,6 +37,11 @@ unity/sync.sh                                                  # build DLLs + co
 
 ## Combat pipeline
 `PerformanceCapture` (mic stream → takes) → `TrainingSession.Analyze` (worker thread: `ContourBuilder` + `MoveRecognizer` scores the take against all 3 loadout snippets) → `TrainingSession.Apply` (main thread: `Battle.Perform`) → `BattleEvent`s. `Battle` takes time as a parameter (ms) — never reads a clock.
+
+## Presentation rules
+- Characters are cosmetic only: `CharacterRoster` rejects gameplay-stat keys. Never give a character a gameplay effect.
+- `CharacterPuppet.cs` and `drawPuppet` in `tools/preview/roster.template.html` share one geometry — change both together, then rebuild the preview.
+- Any Arabic text drawn by Unity goes through `ArabicShaper.ForDisplay` (TextMesh/IMGUI do no shaping or RTL).
 
 ## Conventions
 - Tests: xUnit in `src/VoiceMatch.Core.Tests`; synthetic signals via `TestSignals` and `Synthesis/VoiceSynth`. Add a test for every behaviour change; re-run **both** `eval` and `eval --manifest recordings/humanized/takes.csv` after any change to matching/DSP; neither may regress.

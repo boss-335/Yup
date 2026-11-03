@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Diagnostics;
 using BattleRules.Core;
 using VoiceMatch.Core;
+using VoiceBattle.Session.Presentation;
 
 namespace VoiceBattle.Session
 {
@@ -23,7 +25,8 @@ namespace VoiceBattle.Session
         private readonly GameData _data;
         private readonly MoveRecognizer _recognizer;
 
-        public TrainingSession(GameData data, Loadout player, Loadout? botLoadout = null, int botSeed = 1)
+        public TrainingSession(GameData data, Loadout player, Loadout? botLoadout = null, int botSeed = 1,
+                               string? playerCharacter = null, string? botCharacter = null)
         {
             _data = data;
             _recognizer = new MoveRecognizer(data);
@@ -34,6 +37,11 @@ namespace VoiceBattle.Session
             });
             Bot = new TrainingBot(Battle, BotId, botSeed);
             _playerLoadout = player;
+            var roster = data.Characters.All;
+            PlayerCharacter = data.Characters.Get(playerCharacter ?? roster[0].Id);
+            BotCharacter = data.Characters.Get(botCharacter ?? roster.First(c => c.Id != PlayerCharacter.Id).Id);
+            Presenter = new BattlePresenter(data.Visuals, data.Battle, data.Characters,
+                new Dictionary<string, string> { [PlayerId] = PlayerCharacter.Id, [BotId] = BotCharacter.Id });
             // Build every reference now: later lookups are read-only, so Analyze is safe off the main thread.
             foreach (var snippet in player.Slots.Values) data.Reference(snippet);
         }
@@ -41,6 +49,10 @@ namespace VoiceBattle.Session
         private readonly Loadout _playerLoadout;
 
         public Battle Battle { get; }
+        public Character PlayerCharacter { get; }
+        public Character BotCharacter { get; }
+        /// <summary>Battle events → stage cues (subscribe to Battle.EventRaised and call Presenter.From).</summary>
+        public BattlePresenter Presenter { get; }
         public TrainingBot Bot { get; }
         public Fighter Player => Battle.Get(PlayerId);
 

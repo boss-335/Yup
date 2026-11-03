@@ -1,0 +1,24 @@
+{
+  "_comment": "Presentation timings and styles. Cosmetic only — gameplay lives in moves.json / battle.json.",
+  "stage": {
+    "background_top": "#1B1036", "background_bottom": "#3B1F5E",
+    "floor": "#2A1A40", "spotlight": "#FFF4C2", "curtain": "#8E1B3A"
+  },
+  "face": {
+    "ink": "#1A1024", "mouth": "#2A0F1F", "tongue": "#E86A7A", "sweat": "#9FD8FF", "lens": "#120A18"
+  },
+  "bubble": { "background": "#F6EFFF", "text": "#1B1036" },
+  "tiers": {
+    "sour_color": "#8A8F98",
+    "hit_color": "#FFFFFF",
+    "perfect_color": "#FFD23F"
+  },
+  "moves": {
+    "light":    { "projectile": "notes", "count": 3, "travel_ms": 450, "size": 0.35, "shake": 0.05 },
+    "heavy":    { "projectile": "wave",  "count": 1, "travel_ms": 650, "size": 1.0,  "shake": 0.18 },
+    "finisher": { "projectile": "beam",  "count": 1, "travel_ms": 300, "size": 1.6,  "shake": 0.4, "hold_ms": 900 }
+  },
+  "ko": { "spin_turns": 3, "fly_ms": 900, "confetti": 60 },
+  "singing": { "mouth_min_db": -55, "mouth_max_db": -15, "notes_per_sec": 4 },
+  "line_ms": 2200
+}

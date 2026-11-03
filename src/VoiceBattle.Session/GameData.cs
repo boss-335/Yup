@@ -6,6 +6,7 @@ using System.Text.Json;
 using BattleRules.Core;
 using VoiceMatch.Core;
 using VoiceMatch.Core.Midi;
+using VoiceBattle.Session.Presentation;
 
 namespace VoiceBattle.Session
 {
@@ -43,10 +44,18 @@ namespace VoiceBattle.Session
         private readonly Dictionary<string, Contour> _references = new();
 
         private GameData(string dataDir, VoiceMatchSettings match, BattleConfig battle, SessionConfig session,
-                         IReadOnlyList<Pack> packs, IReadOnlyList<PackRejectedException> rejected)
+                         IReadOnlyList<Pack> packs, IReadOnlyList<PackRejectedException> rejected,
+                         CharacterRoster characters, VisualsConfig visuals)
         {
             DataDir = dataDir; Match = match; Battle = battle; Session = session; Packs = packs; RejectedPacks = rejected;
+            Characters = characters; Visuals = visuals;
         }
+
+        /// <summary>data/characters.json — cosmetic roster.</summary>
+        public CharacterRoster Characters { get; }
+
+        /// <summary>data/visuals.json — stage colours and effect timings.</summary>
+        public VisualsConfig Visuals { get; }
 
         public string DataDir { get; }
         public VoiceMatchSettings Match { get; }
@@ -62,11 +71,13 @@ namespace VoiceBattle.Session
             string battleJson = File.ReadAllText(Path.Combine(dataDir, "battle.json"));
             var battle = BattleConfig.FromJson(File.ReadAllText(Path.Combine(dataDir, "moves.json")), battleJson);
             var (packs, rejected) = PackLoader.LoadAll(Path.Combine(dataDir, "Packs"));
-            return new GameData(dataDir, match, battle, SessionConfig.FromBattleJson(battleJson), packs, rejected);
+            return new GameData(dataDir, match, battle, SessionConfig.FromBattleJson(battleJson), packs, rejected,
+                                CharacterRoster.Load(Path.Combine(dataDir, "characters.json")),
+                                VisualsConfig.Load(Path.Combine(dataDir, "visuals.json")));
         }
 
         /// <summary>Same data with different session settings (e.g. explicit move selection for testing/accessibility).</summary>
-        public GameData WithSession(SessionConfig session) => new GameData(DataDir, Match, Battle, session, Packs, RejectedPacks);
+        public GameData WithSession(SessionConfig session) => new GameData(DataDir, Match, Battle, session, Packs, RejectedPacks, Characters, Visuals);
 
         public Snippet Snippet(string id)
             => Packs.SelectMany(p => p.Snippets).FirstOrDefault(s => s.Id == id) ?? throw new KeyNotFoundException($"no loaded pack has snippet '{id}'");

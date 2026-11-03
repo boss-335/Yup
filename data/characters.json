@@ -1,0 +1,83 @@
+{
+  "_comment": "Cosmetic only (GDD §10: no pay-to-win). The loader rejects any gameplay stat here.",
+  "characters": [
+    {
+      "id": "abu_sawt",
+      "name": { "ar": "أبو صوت", "en": "Abu Sawt" },
+      "tagline": { "ar": "يحسب نفسه تينور الحارة", "en": "Thinks he's the neighbourhood tenor" },
+      "body": "pear", "head": "round", "eyes": "dots", "accessory": "mustache", "idle": "sway",
+      "palette": { "primary": "#F28C28", "secondary": "#FFE0B2", "accent": "#8D4A12" },
+      "lines": {
+        "taunt": { "ar": "اسمع وتعلّم!", "en": "Listen and learn!" },
+        "win":   { "ar": "الصوت صوتي والحارة حارتي", "en": "My voice, my street." },
+        "lose":  { "ar": "الحنجرة تعبانة اليوم", "en": "Throat's tired today." }
+      },
+      "preview_voice": { "transpose": -12, "vibrato_cents": 45 }
+    },
+    {
+      "id": "diva_noor",
+      "name": { "ar": "نور الديفا", "en": "Diva Noor" },
+      "tagline": { "ar": "ما تغنّي… تتجلّى", "en": "She doesn't sing. She arrives." },
+      "body": "tall", "head": "oval", "eyes": "big", "accessory": "sunglasses", "idle": "sway",
+      "palette": { "primary": "#D63384", "secondary": "#FFD6E8", "accent": "#6F1D4B" },
+      "lines": {
+        "taunt": { "ar": "خلّوا المسرح لي", "en": "Clear the stage." },
+        "win":   { "ar": "شكراً شكراً… بدون تصفيق", "en": "Thank you, no applause please." },
+        "lose":  { "ar": "المايك خربان أكيد", "en": "The mic is broken. Obviously." }
+      },
+      "preview_voice": { "transpose": 0, "vibrato_cents": 35 }
+    },
+    {
+      "id": "robo_tarab",
+      "name": { "ar": "روبو طرب", "en": "Robo-Tarab" },
+      "tagline": { "ar": "يطابق اللحن ١٠٠٪… نظرياً", "en": "100% pitch-perfect. In theory." },
+      "body": "square", "head": "square", "eyes": "visor", "accessory": "antenna", "idle": "jitter",
+      "palette": { "primary": "#20A39E", "secondary": "#CFF5F3", "accent": "#0B4F4C" },
+      "lines": {
+        "taunt": { "ar": "جاري تحميل الطرب…", "en": "Loading emotion…" },
+        "win":   { "ar": "تمت المهمة. بيب.", "en": "Task complete. Beep." },
+        "lose":  { "ar": "خطأ ٤٠٤: نغمة", "en": "Error 404: note not found" }
+      },
+      "preview_voice": { "transpose": -5, "vibrato_cents": 0 }
+    },
+    {
+      "id": "qattous",
+      "name": { "ar": "قطّوس", "en": "Qattous" },
+      "tagline": { "ar": "ماو؟ يعني نشيد الفرح", "en": "Meow? That's Ode to Joy." },
+      "body": "round", "head": "round", "eyes": "big", "accessory": "cat_ears", "idle": "bounce",
+      "palette": { "primary": "#7E6BC4", "secondary": "#E3DDFB", "accent": "#3A2F6B" },
+      "lines": {
+        "taunt": { "ar": "ماااو", "en": "Mrrraow." },
+        "win":   { "ar": "بِرررر", "en": "Purrrr." },
+        "lose":  { "ar": "هسسس!", "en": "Hsss!" }
+      },
+      "preview_voice": { "transpose": 7, "vibrato_cents": 20 }
+    },
+    {
+      "id": "teta_soprano",
+      "name": { "ar": "تيتا سوبرانو", "en": "Teta Soprano" },
+      "tagline": { "ar": "٩٠ سنة وتكسر الزجاج", "en": "Ninety years old. Breaks glass." },
+      "body": "pear", "head": "round", "eyes": "dots", "accessory": "glasses_bun", "idle": "bob",
+      "palette": { "primary": "#5FA35F", "secondary": "#DFF2DF", "accent": "#2F5A2F" },
+      "lines": {
+        "taunt": { "ar": "تعال يا حبيبي أعلّمك", "en": "Come here, dear, let me teach you." },
+        "win":   { "ar": "زمان كنا نغني أحسن", "en": "We sang better in my day." },
+        "lose":  { "ar": "وين نظارتي؟", "en": "Where are my glasses?" }
+      },
+      "preview_voice": { "transpose": 3, "vibrato_cents": 70 }
+    },
+    {
+      "id": "chef_dandana",
+      "name": { "ar": "الشيف دندنة", "en": "Chef Dandana" },
+      "tagline": { "ar": "يدندن وهو يطبخ… ويطبخك", "en": "Hums while he cooks. Cooks you." },
+      "body": "round", "head": "round", "eyes": "sleepy", "accessory": "chef_hat", "idle": "bob",
+      "palette": { "primary": "#E04E39", "secondary": "#FFE1DB", "accent": "#7A2216" },
+      "lines": {
+        "taunt": { "ar": "الطبخة على نار هادية", "en": "Simmering…" },
+        "win":   { "ar": "صحتين وعافية", "en": "Bon appétit." },
+        "lose":  { "ar": "احترقت الطبخة", "en": "Burnt the dish." }
+      },
+      "preview_voice": { "transpose": -9, "vibrato_cents": 25 }
+    }
+  ]
+}

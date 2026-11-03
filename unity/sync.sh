@@ -12,7 +12,7 @@ mkdir -p "$out" "$data/Packs" "$data/midi"
 for dll in VoiceMatch.Core VoiceBattle.Session BattleRules.Core System.Text.Json System.Text.Encodings.Web Microsoft.Bcl.AsyncInterfaces; do
   cp "$tmp/$dll.dll" "$out/"
 done
-cp data/match_config.json data/moves.json data/battle.json "$data/"
+cp data/match_config.json data/moves.json data/battle.json data/characters.json data/visuals.json "$data/"
 cp data/Packs/*.json "$data/Packs/"
 cp data/midi/*.mid "$data/midi/"
 rm -rf "$tmp"
