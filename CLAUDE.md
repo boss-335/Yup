@@ -7,7 +7,7 @@ Read `docs/voice-battle-gdd.md` (Arabic) §0 first: it is the binding spec. `doc
 ## Status
 - **M0 (match engine) — implemented.** All four acceptance criteria pass on the clean synthetic benchmark and on the harder humanized set (`gen-takes`, docs/m0-report.md §7). Real human recordings are still pending; the owner chose to proceed to M1 meanwhile. When recordings arrive, run `eval --manifest` and fix the engine — M1 only depends on `MatchResult`.
 - **M1 (local combat) — implemented**, see docs/m1-report.md: `BattleRules.Core`, `VoiceBattle.Session` (mic capture, move recognition, training session), `matcher-lab battle`, Unity scripts in `unity/` (compile-checked against stubs only — not yet run in the Editor). Design decisions in m1-report §2 await owner approval. No networking before M2.
-- **Art direction (GDD Q7) — proposed**, see docs/art-direction.md: talent-show stage, 6 cosmetic characters (`data/characters.json`), effect timings in `data/visuals.json`, `BattlePresenter` (events → cues), Unity `StageView`/`CharacterPuppet`/`Shapes`, browser preview `docs/preview/roster.html` built by `tools/preview/build.py`. Awaiting owner approval.
+- **Art direction (GDD Q7) — approved by the owner on 2026-11-03**, see docs/art-direction.md: talent-show stage, 6 cosmetic characters (`data/characters.json`), effect timings in `data/visuals.json`, `BattlePresenter` (events → cues), Unity `StageView`/`CharacterPuppet`/`Shapes`, browser preview `docs/preview/roster.html` built by `tools/preview/build.py`.
 
 ## Commands
 ```bash
