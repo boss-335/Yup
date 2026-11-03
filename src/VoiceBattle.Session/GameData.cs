@@ -7,6 +7,8 @@ using BattleRules.Core;
 using VoiceMatch.Core;
 using VoiceMatch.Core.Midi;
 using VoiceBattle.Session.Presentation;
+using VoiceBattle.Sounds;
+using VoiceBattle.Session.Custom;
 
 namespace VoiceBattle.Session
 {
@@ -45,11 +47,14 @@ namespace VoiceBattle.Session
 
         private GameData(string dataDir, VoiceMatchSettings match, BattleConfig battle, SessionConfig session,
                          IReadOnlyList<Pack> packs, IReadOnlyList<PackRejectedException> rejected,
-                         CharacterRoster characters, VisualsConfig visuals)
+                         CharacterRoster characters, VisualsConfig visuals, SoundsConfig sounds)
         {
             DataDir = dataDir; Match = match; Battle = battle; Session = session; Packs = packs; RejectedPacks = rejected;
-            Characters = characters; Visuals = visuals;
+            Characters = characters; Visuals = visuals; Sounds = sounds;
         }
+
+        /// <summary>data/sounds.json — taught moves and user sounds.</summary>
+        public SoundsConfig Sounds { get; }
 
         /// <summary>data/characters.json — cosmetic roster.</summary>
         public CharacterRoster Characters { get; }
@@ -73,21 +78,53 @@ namespace VoiceBattle.Session
             var (packs, rejected) = PackLoader.LoadAll(Path.Combine(dataDir, "Packs"));
             return new GameData(dataDir, match, battle, SessionConfig.FromBattleJson(battleJson), packs, rejected,
                                 CharacterRoster.Load(Path.Combine(dataDir, "characters.json")),
-                                VisualsConfig.Load(Path.Combine(dataDir, "visuals.json")));
+                                VisualsConfig.Load(Path.Combine(dataDir, "visuals.json")),
+                                SoundsConfig.Load(Path.Combine(dataDir, "sounds.json")));
         }
 
         /// <summary>Same data with different session settings (e.g. explicit move selection for testing/accessibility).</summary>
-        public GameData WithSession(SessionConfig session) => new GameData(DataDir, Match, Battle, session, Packs, RejectedPacks, Characters, Visuals);
+        public GameData WithSession(SessionConfig session) => new GameData(DataDir, Match, Battle, session, Packs, RejectedPacks, Characters, Visuals, Sounds);
 
         public Snippet Snippet(string id)
             => Packs.SelectMany(p => p.Snippets).FirstOrDefault(s => s.Id == id) ?? throw new KeyNotFoundException($"no loaded pack has snippet '{id}'");
 
         public Loadout Loadout(string light, string heavy, string finisher) => new Loadout(new Dictionary<MoveSlot, Snippet>
         {
-            [MoveSlot.Light] = Snippet(light),
-            [MoveSlot.Heavy] = Snippet(heavy),
-            [MoveSlot.Finisher] = Snippet(finisher),
+            [MoveSlot.Light] = Resolve(light),
+            [MoveSlot.Heavy] = Resolve(heavy),
+            [MoveSlot.Finisher] = Resolve(finisher),
         });
+
+        private readonly Dictionary<string, Snippet> _extraSnippets = new();
+
+        private Snippet Resolve(string id)
+        {
+            lock (_references) if (_extraSnippets.TryGetValue(id, out var s)) return s;
+            return Snippet(id);
+        }
+
+        /// <summary>Makes a taught move usable in loadouts (its reference is the player's own contour).</summary>
+        public Snippet Use(CustomMove move) => Register(move.ToSnippet(), move.Contour());
+
+        /// <summary>
+        /// Makes a library sound usable as <paramref name="slot"/>. The slot must be one the engine suggested
+        /// for its length; the caller is responsible for <see cref="SoundLibrary.CanUse"/>.
+        /// </summary>
+        public Snippet Use(UserSound sound, Contour contour, MoveSlot slot)
+        {
+            string slotName = slot.ToString().ToLowerInvariant();
+            if (!sound.SuggestedSlots.Contains(slotName)) throw new ArgumentException($"sound '{sound.Title}' ({sound.DurationMs} ms) does not fit {slot}");
+            return Register(new Snippet("sound:" + sound.Id, sound.Title, sound.Title, "", slot, sound.DurationMs, sound.Difficulty, "sound:" + sound.OwnerId), contour);
+        }
+
+        private Snippet Register(Snippet s, Contour reference)
+        {
+            lock (_references) { _references[s.Id] = reference; _extraSnippets[s.Id] = s; }
+            return s;
+        }
+
+        /// <summary>Slots a clip of this length can go in (moves.json ranges) — for upload slot suggestions.</summary>
+        public IReadOnlyList<string> SlotsFor(int durationMs) => BattleRules.Core.Loadout.FittingSlots(durationMs, Battle).Select(x => x.ToString().ToLowerInvariant()).ToList();
 
         /// <summary>Reference contour for a snippet, built once from its in-house MIDI (thread-safe).</summary>
         public Contour Reference(Snippet s)
@@ -95,6 +132,7 @@ namespace VoiceBattle.Session
             lock (_references)
             {
                 if (_references.TryGetValue(s.Id, out var c)) return c;
+                if (string.IsNullOrEmpty(s.ReferenceMidi)) throw new KeyNotFoundException($"snippet '{s.Id}' has no reference — register it with GameData.Use first");
                 string path = Path.Combine(DataDir, s.ReferenceMidi.Replace('/', Path.DirectorySeparatorChar));
                 c = ContourBuilder.FromMidi(MidiFile.Read(path), Match.Contour);
                 _references[s.Id] = c;
@@ -102,7 +140,7 @@ namespace VoiceBattle.Session
             }
         }
 
-        /// <summary>Reference notes (for playing the snippet to the player before a match — GDD §5.4).</summary>
+        /// <summary>Reference notes of a pack snippet (taught moves have none: hum their contour with ContourVoice).</summary>
         public MidiNote[] ReferenceNotes(Snippet s) => MidiFile.Read(Path.Combine(DataDir, s.ReferenceMidi.Replace('/', Path.DirectorySeparatorChar)));
     }
 }

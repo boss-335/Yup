@@ -134,13 +134,16 @@ namespace VoiceMatch.Core.Dsp
                     continue;
                 }
 
-                // Keep the octave neighbours of YIN's pick (period ×2 and ×½) as alternatives for the
+                // Keep the octave neighbours of YIN's pick as alternatives for the
                 // temporal smoothing pass. Only octaves: allowing ×3, ×4… lets the smoother "explain"
                 // a melody with one common sub-harmonic instead of following the notes.
                 var list = new List<(float midi, float cost)>(3);
                 list.Add((MidiAt(d, best, tauMax, sampleRate), (float)aper[best]));
                 double limit = d[best] + _cfg.PitchCandidateMargin;
-                foreach (int target in new[] { 2 * best, best / 2 })
+                // One and two octaves either way (×2, ×4, ×½, ×¼): YIN can jump two octaves up on a weak fundamental.
+                foreach (var (target, octaves) in _cfg.PitchCandidateOctaves >= 2
+                             ? new[] { (2 * best, 1), (4 * best, 2), (best / 2, 1), (best / 4, 2) }
+                             : new[] { (2 * best, 1), (best / 2, 1) })
                 {
                     int lo = Math.Max(tauMin, (int)(target * 0.97)), hi = Math.Min(tauMax - 1, (int)Math.Ceiling(target * 1.03));
                     int bt = -1;
@@ -148,8 +151,8 @@ namespace VoiceMatch.Core.Dsp
                         if (d[tau] <= d[tau - 1] && d[tau] <= d[tau + 1] && (bt < 0 || d[tau] < d[bt])) bt = tau;
                     // Candidates are compared on d(τ)/(e0+eτ): unlike d'(τ), which the cumulative mean makes
                     // systematically lower at 2τ, it does not favour longer periods. Alternatives also carry a
-                    // small penalty so ties keep YIN's own pick.
-                    if (bt > 0 && d[bt] <= limit) list.Add((MidiAt(d, bt, tauMax, sampleRate), (float)aper[bt] + _cfg.PitchAlternativePenalty));
+                    // penalty per octave of distance, so ties keep YIN's own pick and far jumps need real evidence.
+                    if (bt > 0 && d[bt] <= limit) list.Add((MidiAt(d, bt, tauMax, sampleRate), (float)aper[bt] + _cfg.PitchAlternativePenalty * octaves));
                 }
                 candidates[f] = list;
 
@@ -157,7 +160,8 @@ namespace VoiceMatch.Core.Dsp
                 frames[f] = new PitchFrame(time, MathUtil.MidiToHz(midi0), midi0, conf, rmsDb, true);
             }
 
-            if (_cfg.PitchSmoothingPerSemitone > 0) Smooth(frames, candidates, _cfg.PitchSmoothingPerSemitone);
+            if (_cfg.PitchSmoothingPerSemitone > 0)
+                Smooth(frames, candidates, _cfg.PitchSmoothingPerSemitone, (int)Math.Round(_cfg.PitchSmoothingMaxGapMs / 1000.0 * sampleRate / hop));
             return frames;
         }
 
@@ -179,50 +183,57 @@ namespace VoiceMatch.Core.Dsp
         }
 
         /// <summary>
-        /// Viterbi over pitch candidates within each voiced run (the idea behind pYIN): choose the
-        /// sequence minimising Σ aperiodicity + λ·|Δ semitones|, so a note does not flip between octaves
-        /// frame to frame (weak fundamentals, clipping, strong formants).
+        /// Viterbi over pitch candidates (the idea behind pYIN): choose the sequence minimising
+        /// Σ aperiodicity + λ·|Δ semitones|, so a note does not flip between octaves (weak fundamentals,
+        /// clipping, strong formants). Voiced runs separated by short gaps — a consonant like "t" or "s"
+        /// between sung syllables — are smoothed together, so neighbouring notes decide the octave too.
         /// </summary>
-        private static void Smooth(PitchFrame[] frames, List<(float midi, float cost)>?[] cand, float lambda)
+        private static void Smooth(PitchFrame[] frames, List<(float midi, float cost)>?[] cand, float lambda, int maxGapFrames)
         {
             int i = 0;
             while (i < frames.Length)
             {
                 if (cand[i] == null) { i++; continue; }
-                int j = i;
-                while (j < frames.Length && cand[j] != null) j++;
-                int n = j - i;
+                // Collect the voiced frames of this group: runs joined while gaps stay short.
+                var idx = new List<int>();
+                int k = i, gap = 0;
+                while (k < frames.Length && (cand[k] != null || gap < maxGapFrames))
+                {
+                    if (cand[k] != null) { idx.Add(k); gap = 0; } else gap++;
+                    k++;
+                }
+                int n = idx.Count;
                 var acc = new float[n][];
                 var back = new int[n][];
-                acc[0] = cand[i]!.Select(c => c.cost).ToArray();
+                acc[0] = cand[idx[0]]!.Select(c => c.cost).ToArray();
                 back[0] = new int[acc[0].Length];
-                for (int k = 1; k < n; k++)
+                for (int q = 1; q < n; q++)
                 {
-                    var cur = cand[i + k]!; var prev = cand[i + k - 1]!;
-                    acc[k] = new float[cur.Count];
-                    back[k] = new int[cur.Count];
+                    var cur = cand[idx[q]]!; var prev = cand[idx[q - 1]]!;
+                    acc[q] = new float[cur.Count];
+                    back[q] = new int[cur.Count];
                     for (int a = 0; a < cur.Count; a++)
                     {
                         float bestV = float.PositiveInfinity; int bestP = 0;
                         for (int p = 0; p < prev.Count; p++)
                         {
                             float jump = Math.Abs(cur[a].midi - prev[p].midi);
-                            float v = acc[k - 1][p] + lambda * (jump < 0.5f ? 0 : jump);
+                            float v = acc[q - 1][p] + lambda * (jump < 0.5f ? 0 : jump);
                             if (v < bestV) { bestV = v; bestP = p; }
                         }
-                        acc[k][a] = bestV + cur[a].cost;
-                        back[k][a] = bestP;
+                        acc[q][a] = bestV + cur[a].cost;
+                        back[q][a] = bestP;
                     }
                 }
                 int sel = Array.IndexOf(acc[n - 1], acc[n - 1].Min());
-                for (int k = n - 1; k >= 0; k--)
+                for (int q = n - 1; q >= 0; q--)
                 {
-                    var f = frames[i + k];
-                    float m = cand[i + k]![sel].midi;
-                    frames[i + k] = f with { Midi = m, F0Hz = MathUtil.MidiToHz(m) };
-                    sel = back[k][sel];
+                    var f = frames[idx[q]];
+                    float m = cand[idx[q]]![sel].midi;
+                    frames[idx[q]] = f with { Midi = m, F0Hz = MathUtil.MidiToHz(m) };
+                    sel = back[q][sel];
                 }
-                i = j;
+                i = idx[n - 1] + 1;
             }
         }
     }

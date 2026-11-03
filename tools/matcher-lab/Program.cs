@@ -22,8 +22,13 @@ public static class Program
   eval      [--performers 10] [--report <file.md>] [--dump <takes.csv>]  synthetic M0 benchmark (GDD §11)
   eval      --manifest <takes.csv> [--report <file.md>]  same metrics on real recordings
   battle    [--skill good|average|bad] [--performer woman] [--seed 1]
-            [--light fur_elise_a] [--heavy ode_to_joy_a] [--finisher beethoven5_a]
+            [--light fur_elise_a] [--heavy ode_to_joy_a] [--finisher beethoven5_a]  (custom:<id> = taught move)
                                                    V1 training match: synthetic singer vs bot, full pipeline
+  teach     --slot light|heavy|finisher --name <name> --takes a.wav b.wav [c.wav]
+            [--store recordings/my_moves.json]        teach a move by singing it (kept on this device only)
+  moves     [--hum <id> --out preview.wav] [--delete <id>]   list / preview taught moves
+  upload    --file x.wav --title <title> [--tags a,b] [--visibility private|friends|public] --attest
+            [--user me] [--age 20] [--db recordings/sounds]   user sound upload checks (GDD §5.4)
   gen-takes --out <dir> [--performers 10]          humanized synthetic take set + takes.csv
                                                    (stand-in until real recordings exist)
 
@@ -47,6 +52,9 @@ Common: --config <match_config.json>  (default: data/match_config.json found upw
                 "eval" => Benchmark.Run(opts, LoadSettings(opts)),
                 "gen-takes" => GenTakes(opts),
                 "battle" => BattleSim.Run(opts),
+                "teach" => SoundsCli.Teach(opts),
+                "moves" => SoundsCli.Moves(opts),
+                "upload" => SoundsCli.Upload(opts),
                 _ => Fail($"unknown command '{args[0]}'\n\n{Usage}"),
             };
         }

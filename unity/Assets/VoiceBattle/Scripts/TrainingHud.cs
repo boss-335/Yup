@@ -39,8 +39,9 @@ namespace VoiceBattle.UnityLayer
             if (!_match.MatchStarted)
             {
                 if (mic.Calibrating) GUILayout.Label("Calibrating — stay quiet for a second…", _big);
-                else if (GUILayout.Button("Start training match", GUILayout.Height(40))) _match.StartMatch();
-                PreviewButtons(s);
+                else if (_match.Teacher == null && GUILayout.Button("Start training match", GUILayout.Height(40))) _match.StartMatch();
+                if (_match.Teacher != null) TeachPanel();
+                else { PreviewButtons(s); MyMovesPanel(s); }
                 GUILayout.EndArea();
                 return;
             }
@@ -96,6 +97,72 @@ namespace VoiceBattle.UnityLayer
             foreach (var kv in s.Player.Loadout.Slots.OrderBy(k => k.Key))
                 if (GUILayout.Button($"▶ {kv.Key}: {kv.Value.TitleEn}")) _match!.Preview(kv.Key);
         }
+
+        private string _moveName = "";
+        private string? _teachError;
+
+        /// <summary>Taught moves on this device: equip into their slot, hear them hummed back, or teach a new one.</summary>
+        private void MyMovesPanel(TrainingSession s)
+        {
+            var store = _match!.MyMoves;
+            GUILayout.Space(8);
+            GUILayout.Label("Moves you taught by singing (kept on this device only):");
+            if (store == null || store.All.Count == 0) GUILayout.Label("  none yet");
+            else
+                foreach (var m in store.All)
+                {
+                    GUILayout.BeginHorizontal();
+                    bool equipped = s.Player.Loadout[m.Slot].Id == m.SnippetId;
+                    GUILayout.Label($"  {m.Slot,-9} {ArabicShaper.ForDisplay(m.Name)}  ({m.DurationMs / 1000f:F1}s, difficulty {m.Difficulty}/5){(equipped ? "  ✓ equipped" : "")}");
+                    if (GUILayout.Button("▶", GUILayout.Width(32))) _match.PreviewTaught(m);
+                    if (!equipped && GUILayout.Button("Use", GUILayout.Width(56))) _match.Equip(m.Slot, m.SnippetId);
+                    GUILayout.EndHorizontal();
+                }
+            GUILayout.Label("Teach a new move — sing any tune you like, twice the same way:");
+            GUILayout.BeginHorizontal();
+            foreach (MoveSlot slot in System.Enum.GetValues(typeof(MoveSlot)))
+            {
+                var mv = _match.Data!.Battle.Move(slot);
+                if (GUILayout.Button($"{slot} ({mv.MinMs / 1000f:0.#}–{mv.MaxMs / 1000f:0.#} s)")) { _match.BeginTeaching(slot); _moveName = ""; _teachError = null; }
+            }
+            GUILayout.EndHorizontal();
+        }
+
+        private void TeachPanel()
+        {
+            var t = _match!.Teacher!;
+            var mv = _match.Data!.Battle.Move(t.Slot);
+            GUILayout.Label($"Teaching a {t.Slot} move: sing it ({mv.MinMs / 1000f:0.#}–{mv.MaxMs / 1000f:0.#} s), then sing it again the same way.", _big);
+            GUILayout.Label(_match.pushToSing ? "Hold Space while you sing." : "Just sing — the take ends after a short silence.");
+            GUILayout.Label($"Takes kept: {t.AcceptedTakes}   {(t.Ready ? "READY — give it a name" : "")}");
+            var f = _match.LastTeach;
+            if (f != null)
+                GUILayout.Label($"Last take: {(f.Accepted ? "kept" : "not kept")} {Reason(f.Reason)}  {f.DurationMs / 1000f:F1}s" +
+                                (f.Consistency is float c ? $"  agreement {c:F2}" : ""));
+            GUILayout.Space(6);
+            GUILayout.Label("Name:");
+            _moveName = GUILayout.TextField(_moveName, _match.Data.Sounds.Teach.NameMaxChars);
+            if (ArabicShaper.NeedsShaping(_moveName)) GUILayout.Label("  " + ArabicShaper.ForDisplay(_moveName)); // IMGUI does not shape Arabic
+            GUILayout.BeginHorizontal();
+            if (t.Ready && GUILayout.Button("Save move", GUILayout.Height(32))) _teachError = _match.FinishTeaching(_moveName);
+            if (GUILayout.Button("Start over", GUILayout.Height(32))) { t.Reset(); _teachError = null; }
+            if (GUILayout.Button("Cancel", GUILayout.Height(32))) { _match.CancelTeaching(); _teachError = null; }
+            GUILayout.EndHorizontal();
+            if (_teachError != null) GUILayout.Label("  " + _teachError);
+        }
+
+        private static string Reason(string? r) => r switch
+        {
+            null => "",
+            "too_short_for_slot" => "(too short for this slot)",
+            "too_long_for_slot" => "(too long for this slot)",
+            "too_quiet" => "(too quiet)",
+            "no_voice" => "(no singing heard)",
+            "inconsistent" => "(doesn't match your other takes — sing it the same way)",
+            "no_two_takes_agree_reset" => "(no two takes agree — press Start over)",
+            "enough_takes" => "(enough takes — save it)",
+            var other => "(" + other + ")",
+        };
 
         private static void Bar(float fraction, Color color)
         {

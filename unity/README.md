@@ -26,6 +26,7 @@ Re-run the sync script after any change in `src/` or `data/`. The copied DLLs an
 - Before starting, the ▶ buttons play each snippet so you can learn it.
 - Sing (or hum) any of your three snippets — the game recognises which one. Light ≈ 2 s, heavy ≈ 4 s.
 - When the charge bar is full, sing the finisher **4 times in 8 seconds** (sing it fast, short pauses).
+- **Teach a move:** before the match, pick a slot under "Teach a new move", sing it twice the same way, name it, Save. It is equipped in that slot and kept in `persistentDataPath/my_moves.json` (this device only). ▶ hums it back.
 - `pushToSing` on TrainingMatch: hold **Space** while singing instead of automatic detection.
 - Use headphones: the reference preview and the bot are otherwise picked up by the mic.
 

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using BattleRules.Core;
 using UnityEngine;
 using VoiceBattle.Session;
+using VoiceBattle.Session.Custom;
 using VoiceMatch.Core.Synthesis;
 
 namespace VoiceBattle.UnityLayer
@@ -19,6 +20,7 @@ namespace VoiceBattle.UnityLayer
     [RequireComponent(typeof(AudioSource))]
     public sealed class TrainingMatch : MonoBehaviour
     {
+        [Tooltip("Pack snippet id, or custom:<id> for a move taught by singing (see the Teach panel)")]
         public string lightSnippet = "fur_elise_a";
         public string heavySnippet = "ode_to_joy_a";
         public string finisherSnippet = "beethoven5_a";
@@ -38,6 +40,11 @@ namespace VoiceBattle.UnityLayer
         public TakeResult? LastTake { get; private set; }
         public string? Error { get; private set; }
         public bool Analysing => _pending > 0;
+        /// <summary>Moves taught by singing, kept on this device only (never uploaded — they may be covers).</summary>
+        public CustomMoveStore? MyMoves { get; private set; }
+        /// <summary>Non-null while the player is teaching a move: takes go here instead of the battle.</summary>
+        public MoveTeacher? Teacher { get; private set; }
+        public TeachFeedback? LastTeach { get; private set; }
         public event Action<TakeResult>? TakeApplied;
 
         private readonly ConcurrentQueue<TakeAnalysis> _done = new();
@@ -49,6 +56,8 @@ namespace VoiceBattle.UnityLayer
             try
             {
                 Data = GameData.Load(Path.Combine(Application.streamingAssetsPath, "data"));
+                MyMoves = new CustomMoveStore(Path.Combine(Application.persistentDataPath, "my_moves.json"), Data.Sounds.Teach);
+                foreach (var m in MyMoves.All) Data.Use(m);
                 foreach (var r in Data.RejectedPacks) Debug.LogWarning(r.Message);
                 foreach (var p in Data.Packs) foreach (var w in p.Warnings) Debug.LogWarning($"pack {p.Id}: {w}");
                 Session = new TrainingSession(Data, Data.Loadout(lightSnippet, heavySnippet, finisherSnippet), botSeed: botSeed,
@@ -90,6 +99,11 @@ namespace VoiceBattle.UnityLayer
 
         private void OnTake(Performance take)
         {
+            if (Teacher != null)
+            {
+                LastTeach = Teacher.AddTake(take.Samples, take.SampleRate);
+                return;
+            }
             if (Session == null || !_started) return;
             System.Threading.Interlocked.Increment(ref _pending);
             var s = Session;
@@ -137,16 +151,90 @@ namespace VoiceBattle.UnityLayer
             }
         }
 
-        /// <summary>Plays a snippet's reference so the player can learn it (synthesised from our own MIDI).</summary>
+        /// <summary>Plays a snippet's reference so the player can learn it (our own MIDI, or a taught move hummed back).</summary>
         public void Preview(MoveSlot slot)
         {
             if (Data == null || Session == null) return;
-            var notes = Data.ReferenceNotes(Session.Player.Loadout[slot]);
+            var snippet = Session.Player.Loadout[slot];
             int rate = AudioSettings.outputSampleRate;
-            var samples = VoiceSynth.Render(notes, new VoiceStyle { NoteErrorCents = 0, TimingJitter = 0, NoiseDb = -120, LeadSilenceSec = 0.05f }, rate, 1);
-            var clip = AudioClip.Create("preview_" + slot, samples.Length, 1, rate, false);
+            var samples = snippet.PackId == "custom"
+                ? ContourVoice.Render(Data.Reference(snippet), rate)
+                : VoiceSynth.Render(Data.ReferenceNotes(snippet), new VoiceStyle { NoteErrorCents = 0, TimingJitter = 0, NoiseDb = -120, LeadSilenceSec = 0.05f }, rate, 1);
+            PlayMono(samples, rate, "preview_" + slot);
+        }
+
+        public void PreviewTaught(CustomMove move)
+        {
+            int rate = AudioSettings.outputSampleRate;
+            PlayMono(ContourVoice.Render(move.Contour(), rate), rate, "hum_" + move.Id);
+        }
+
+        private void PlayMono(float[] samples, int rate, string name)
+        {
+            if (samples.Length == 0) return;
+            var clip = AudioClip.Create(name, samples.Length, 1, rate, false);
             clip.SetData(samples, 0);
             GetComponent<AudioSource>().PlayOneShot(clip);
+        }
+
+        // ---------- teaching a move by singing (before a match) ----------
+        public void BeginTeaching(MoveSlot slot)
+        {
+            if (Data == null || _started) return;
+            Teacher = new MoveTeacher(Data, slot);
+            LastTeach = null;
+        }
+
+        public void CancelTeaching() { Teacher = null; LastTeach = null; }
+
+        /// <summary>Saves the taught move and puts it in its slot for the next match. Returns an error message or null.</summary>
+        public string? FinishTeaching(string name)
+        {
+            if (Data == null || MyMoves == null || Teacher == null) return "not teaching";
+            try
+            {
+                var move = Teacher.Finish(name, DateTime.UtcNow);
+                MyMoves.Add(move);
+                var snippet = Data.Use(move);
+                switch (move.Slot)
+                {
+                    case MoveSlot.Light: lightSnippet = snippet.Id; break;
+                    case MoveSlot.Heavy: heavySnippet = snippet.Id; break;
+                    default: finisherSnippet = snippet.Id; break;
+                }
+                Teacher = null;
+                RebuildSession();
+                return null;
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException) { return ex.Message; }
+        }
+
+        /// <summary>Uses a pack snippet or a taught move (custom:id) in its slot for the next match.</summary>
+        public void Equip(MoveSlot slot, string snippetId)
+        {
+            if (_started) return;
+            switch (slot)
+            {
+                case MoveSlot.Light: lightSnippet = snippetId; break;
+                case MoveSlot.Heavy: heavySnippet = snippetId; break;
+                default: finisherSnippet = snippetId; break;
+            }
+            RebuildSession();
+        }
+
+        private void RebuildSession()
+        {
+            if (Data == null || Stage == null) return;
+            try
+            {
+                var s = new TrainingSession(Data, Data.Loadout(lightSnippet, heavySnippet, finisherSnippet), botSeed: botSeed,
+                                            playerCharacter: playerCharacter, botCharacter: botCharacter);
+                var stage = Stage;
+                var presenter = s.Presenter;
+                s.Battle.EventRaised += e => stage.Enqueue(presenter.From(e));
+                Session = s;
+            }
+            catch (ArgumentException ex) { Error = ex.Message; }
         }
     }
 

@@ -32,11 +32,17 @@ namespace VoiceMatch.Core
         /// <summary>Viterbi jump cost per semitone between frames (0 disables smoothing).</summary>
         public float PitchSmoothingPerSemitone { get; init; } = 0.04f;
 
+        /// <summary>Voiced runs separated by at most this much silence are smoothed together (consonants between syllables).</summary>
+        public float PitchSmoothingMaxGapMs { get; init; } = 200f;
+
         /// <summary>Other d' minima within this margin of the chosen one are kept as candidates.</summary>
         public float PitchCandidateMargin { get; init; } = 0.3f;
 
-        /// <summary>Per-frame cost of choosing an octave alternative over YIN's own pick (the first dip).</summary>
-        public float PitchAlternativePenalty { get; init; } = 0.02f;
+        /// <summary>How many octaves either side of YIN's pick are candidates (1 = ×2/×½, 2 = also ×4/×¼).</summary>
+        public int PitchCandidateOctaves { get; init; } = 2;
+
+        /// <summary>Per-frame cost, per octave of distance, of choosing an alternative over YIN's own pick (the first dip).</summary>
+        public float PitchAlternativePenalty { get; init; } = 0.04f;
         public float YinThreshold { get; init; } = 0.15f;
         public int MedianWindow { get; init; } = 5;
         public float MinF0Hz { get; init; } = 65f;
@@ -199,7 +205,9 @@ namespace VoiceMatch.Core
                     YinFallbackThreshold = GetFloat(a, "yin_fallback_threshold", c.YinFallbackThreshold),
                     YinFallbackMargin = GetFloat(a, "yin_fallback_margin", c.YinFallbackMargin),
                     PitchSmoothingPerSemitone = GetFloat(a, "pitch_smoothing_per_semitone", c.PitchSmoothingPerSemitone),
+                    PitchSmoothingMaxGapMs = GetFloat(a, "pitch_smoothing_max_gap_ms", c.PitchSmoothingMaxGapMs),
                     PitchCandidateMargin = GetFloat(a, "pitch_candidate_margin", c.PitchCandidateMargin),
+                    PitchCandidateOctaves = GetInt(a, "pitch_candidate_octaves", c.PitchCandidateOctaves),
                     PitchAlternativePenalty = GetFloat(a, "pitch_alternative_penalty", c.PitchAlternativePenalty),
                     MaxF0Hz = GetFloat(a, "max_f0_hz", c.MaxF0Hz),
                     GateDb = GetFloat(a, "gate_db", c.GateDb),

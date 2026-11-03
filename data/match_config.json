@@ -11,7 +11,7 @@
   "dtw_points": 256, "key_search_cents": 0,
   "analysis": {
     "analysis_rate": 24000, "pitch_lowpass_hz": 1500, "yin_fallback_threshold": 0.35, "yin_fallback_margin": 0.1,
-    "pitch_smoothing_per_semitone": 0.04, "pitch_candidate_margin": 0.3, "pitch_alternative_penalty": 0.02,
+    "pitch_smoothing_per_semitone": 0.04, "pitch_smoothing_max_gap_ms": 200, "pitch_candidate_margin": 0.3, "pitch_candidate_octaves": 2, "pitch_alternative_penalty": 0.04,
     "min_f0_hz": 65, "max_f0_hz": 1100,
     "gate_db": -45, "target_rms_db": -20, "max_gain_db": 24,
     "min_voiced_run": 3, "pitch_onset_semitones": 0.75,

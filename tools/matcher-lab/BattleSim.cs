@@ -17,6 +17,7 @@ public static class BattleSim
         foreach (var r in data.RejectedPacks) Console.WriteLine("pack rejected: " + r.Message);
         foreach (var p in data.Packs) foreach (var w in p.Warnings) Console.WriteLine($"pack {p.Id}: warning: {w}");
 
+        SoundsCli.RegisterTaught(data, o);
         var loadout = data.Loadout(o.Get("light") ?? "fur_elise_a", o.Get("heavy") ?? "ode_to_joy_a", o.Get("finisher") ?? "beethoven5_a");
         int seed = int.Parse(o.Get("seed") ?? "1");
         string skill = o.Get("skill") ?? "good"; // good | average | bad
@@ -47,8 +48,11 @@ public static class BattleSim
             };
             var style = HumanSimulator.Style(who, kind, seed * 1000 + take++) with { FalseStart = false };
             if (finishing) style = style with { Breaths = false, Voice = style.Voice with { Speed = 1.3f, LeadSilenceSec = 0.05f, TailSilenceSec = 0.05f } };
-            var notes = data.ReferenceNotes(loadout[slot]);
-            var audio = wait.Concat(HumanVoice.Render(notes, style, 48000, seed * 1000 + take))
+            // Taught moves have no score: the synthetic singer hums their stored contour instead.
+            float[] sung = loadout[slot].PackId == "custom"
+                ? ContourVoice.Render(data.Reference(loadout[slot]), 48000, 57 + (float)rng.NextDouble() * 10)
+                : HumanVoice.Render(data.ReferenceNotes(loadout[slot]), style, 48000, seed * 1000 + take);
+            var audio = wait.Concat(sung)
                             .Concat(new float[(int)((finishing ? 0.3 : 0.5) * 48000)]).ToArray();
 
             for (int i = 0; i < audio.Length && session.Battle.State == BattleState.Running; i += 480)

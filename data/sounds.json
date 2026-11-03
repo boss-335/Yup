@@ -1,0 +1,36 @@
+{
+  "_comment": "Taught moves (private, on-device) and user sounds (GDD §5.4). Public uploads stay OFF until an IP lawyer has reviewed the terms and takedown process (GDD §11 M6).",
+
+  "teach": {
+    "required_takes": 2,
+    "max_takes": 5,
+    "consistency_min": 0.6,
+    "name_max_chars": 24,
+    "max_moves": 30
+  },
+
+  "uploads": {
+    "min_ms": 1000,
+    "max_ms": 6000,
+    "formats": ["wav", "ogg", "mp3"],
+    "max_file_bytes": 2000000,
+    "daily_limit": 10,
+    "title_max_chars": 32,
+    "max_tags": 5,
+    "min_voiced_ratio": 0.25,
+    "min_voiced_ms": 400,
+    "public_min_age": 18,
+    "matchmaking_min_age": 13,
+    "strikes_to_suspend": 3,
+    "purge_after_days": 30,
+    "review_after_uses": 500,
+    "trending_window_days": 7,
+    "badges": [100, 1000, 10000],
+    "public_uploads_enabled": false,
+    "attestation": {
+      "version": "2026-11-v1",
+      "ar": "هذا الصوت من إنتاجي أو أملك حقوقه، وما فيه أغنية أو مقطع لغيري، وكل من يُسمع صوته فيه وافق.",
+      "en": "I made this sound or own its rights; it contains no one else's song or clip, and everyone heard in it agreed."
+    }
+  }
+}

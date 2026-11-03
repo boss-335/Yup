@@ -2,7 +2,7 @@
 
 لعبة قتال جماعية: **غنّي عشان تضرب**. وثيقة التصميم الكاملة: [`docs/voice-battle-gdd.md`](docs/voice-battle-gdd.md).
 المراحل المنجزة: **M0 — محرّك المطابقة** ([تقرير](docs/m0-report.md)) و **M1 — القتال المحلي** ([تقرير](docs/m1-report.md)): مكتبات C# مستقلة عن Unity + أداة سطر أوامر + اختبارات + سكربتات Unity.
-الشكل البصري والشخصيات: [`docs/art-direction.md`](docs/art-direction.md) — ومعاينة تفاعلية تفتحها بأي متصفح: [`docs/preview/roster.html`](docs/preview/roster.html).
+حركاتي وأصواتي: [`docs/my-moves-and-sounds.md`](docs/my-moves-and-sounds.md) · الشكل البصري والشخصيات: [`docs/art-direction.md`](docs/art-direction.md) — ومعاينة تفاعلية تفتحها بأي متصفح: [`docs/preview/roster.html`](docs/preview/roster.html).
 
 > كل شي يشتغل **محلياً على جهازك بدون إنترنت** بعد أول `restore` (يحمّل حزم NuGet مرة وحدة).
 
@@ -71,6 +71,9 @@ dotnet run --project tools/matcher-lab -- <command>
 | `eval --manifest recordings/takes.csv` | **نفس الاختبار على تسجيلات حقيقية** (انظر القسم 4) |
 | `gen-takes --out recordings/humanized` | يولّد 240 أداء أصعب (حروف ساكنة، ضجيج، صدى، قص…) + `takes.csv` |
 | `battle --skill average` | مباراة تدريب كاملة: مغنّي صناعي ضد البوت عبر كل المراحل الحقيقية |
+| `teach --slot heavy --name <name> --takes a.wav b.wav` | علّم حركة بالغناء (تنحفظ على جهازك فقط) |
+| `moves` / `moves --hum <id> --out x.wav` | حركاتك المحفوظة / اسمعها مدندنة |
+| `upload --file x.wav --title <title> --attest` | رفع صوت مع كل فحوصات §5.4 (محلي للتجربة) |
 | `analyze take.wav --frames` | يطبع مخرجات YIN الخام إطاراً بإطار (لتشخيص أخطاء الطبقة) |
 
 سجّل نفسك بأي برنامج (Audacity مثلاً) واحفظ WAV، ثم:
@@ -90,7 +93,8 @@ src/VoiceMatch.Core/         مكتبة المطابقة (netstandard2.1 — ت�
   Synthesis/                 مولّد أصوات صناعية للاختبارات
 src/VoiceMatch.Core.Tests/   اختبارات xUnit
 src/BattleRules.Core/        منطق القتال (HP، الشحن، التبريد، الضرر، الحزم والتراخيص، بوت التدريب) بدون Unity
-src/VoiceBattle.Session/     يربط المكتبتين: تقطيع المايك، التعرّف على الحركة المغنّاة، جلسة التدريب
+src/VoiceBattle.Session/     يربط المكتبتين: تقطيع المايك، التعرّف على الحركة المغنّاة، جلسة التدريب، تعليم الحركات
+src/VoiceBattle.Sounds/      أصوات اللاعبين (§5.4): الرفع والفحوصات، المكتبة، البلاغات، الإزالة
 unity/                       سكربتات Unity (انظر unity/README.md)
 tools/matcher-lab/           أداة سطر الأوامر
 data/match_config.json       كل العتبات والأوزان (لا شيء ثابت في الكود)
