@@ -1,0 +1,11 @@
+{
+  "_comment": "Voice chat between players (GDD §7.1: hearing each other is the comedy). Opus via Concentus.",
+  "sample_rate": 16000,
+  "frame_ms": 20,
+  "bitrate": 16000,
+  "jitter_ms": 60,
+  "max_buffer_ms": 400,
+  "send_gate_db": -50,
+  "hangover_ms": 300,
+  "mute_strangers_by_default": true
+}

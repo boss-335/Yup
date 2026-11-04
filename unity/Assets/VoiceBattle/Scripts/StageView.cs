@@ -41,7 +41,12 @@ namespace VoiceBattle.UnityLayer
 
         public CharacterPuppet Puppet(string fighterId) => _puppets[fighterId];
 
+        /// <summary>Two-fighter stage (training).</summary>
         public void Build(VisualsConfig vis, IReadOnlyList<(string fighterId, Character character)> fighters)
+            => Build(vis, fighters.Select(f => (f.fighterId, f.character, f.fighterId)).ToList(), teamMode: false);
+
+        /// <summary>Any mode: duel, teams (A left / B right), or up to 16 for free-for-all and Battle Ground.</summary>
+        public void Build(VisualsConfig vis, IReadOnlyList<(string fighterId, Character character, string team)> fighters, bool teamMode)
         {
             _vis = vis;
             _font = LoadFont();
@@ -68,21 +73,33 @@ namespace VoiceBattle.UnityLayer
             var valance = Sprite("valance", Shapes.RoundRect(20, .7f, .01f), new Vector3(0, 7.05f, 3), -79, curtain);
             valance.transform.localScale = new Vector3(20, 20, 1);
 
-            float[] xs = { -3.2f, 3.2f };
-            for (int i = 0; i < fighters.Count && i < 2; i++)
+            var spot = CharacterPuppet.C(vis.Spotlight); spot.a = .3f;
+            var spots = StageLayout.Arrange(fighters.Select(f => (f.fighterId, f.team)).ToList(), teamMode);
+            foreach (var sp in spots)
             {
-                var spot = CharacterPuppet.C(vis.Spotlight); spot.a = .3f;
-                var cone = Sprite("spot", Shapes.Cone(), new Vector3(xs[i], 3.4f, 2), -70, spot);
-                cone.transform.localScale = new Vector3(4.6f, 7.6f, 1);
-                var pool = Sprite("pool", Shapes.Circle(), new Vector3(xs[i], .02f, 2), -69, new Color(spot.r, spot.g, spot.b, .14f));
-                pool.transform.localScale = new Vector3(2.4f, .32f, 1);
+                var f = fighters.First(x => x.fighterId == sp.FighterId);
+                if (spots.Count <= 4)
+                {
+                    var cone = Sprite("spot", Shapes.Cone(), new Vector3(sp.X, 3.4f, 2), -70, spot);
+                    cone.transform.localScale = new Vector3(4.6f * sp.Scale, 7.6f, 1);
+                }
+                var pool = Sprite("pool", Shapes.Circle(), new Vector3(sp.X, sp.Y + .02f, 2), -69, new Color(spot.r, spot.g, spot.b, .14f));
+                pool.transform.localScale = new Vector3(2.4f * sp.Scale, .32f * sp.Scale, 1);
 
-                var go = new GameObject("puppet_" + fighters[i].fighterId);
+                var go = new GameObject("puppet_" + sp.FighterId);
                 var p = go.AddComponent<CharacterPuppet>();
-                p.Build(fighters[i].character, vis, new Vector3(xs[i], 0, 0), i == 0 ? 1 : -1, i * 50);
-                _puppets[fighters[i].fighterId] = p;
+                p.Build(f.character, vis, new Vector3(sp.X, sp.Y, 0), sp.Facing, sp.SortingBase, sp.Scale);
+                _puppets[sp.FighterId] = p;
+            }
+            if (spots.Count > 4)
+            {
+                // A big lobby gets one wide wash instead of a spotlight each.
+                var wash = Sprite("wash", Shapes.Cone(), new Vector3(0, 3.6f, 2), -70, new Color(spot.r, spot.g, spot.b, .18f));
+                wash.transform.localScale = new Vector3(16f, 8f, 1);
             }
         }
+
+        public bool HasPuppet(string fighterId) => _puppets.ContainsKey(fighterId);
 
         private AudioSource? _sfxSource;
         private readonly Dictionary<string, AudioClip> _clips = new();
@@ -156,21 +173,21 @@ namespace VoiceBattle.UnityLayer
                     if (t == null) break;
                     t.SetPose(PuppetPose.Hit);
                     _shake = Mathf.Max(_shake, _vis.Move(c.Slot ?? MoveSlot.Light).Shake * (0.5f + c.Intensity));
-                    Popup("-" + c.Damage.ToString(c.Damage >= 10 ? "F0" : "F1"), t.transform.position + Vector3.up * (t.HeadTop + .6f), Color.white, 1f);
+                    Popup("-" + c.Damage.ToString(c.Damage >= 10 ? "F0" : "F1"), t.transform.position + Vector3.up * (t.HeadTopWorld + .6f), Color.white, 1f);
                     break;
                 case CueKind.Perfect:
                     if (t == null || a == null) break;
                     Burst(t.transform.position + Vector3.up * 1.2f, CharacterPuppet.C(_vis.PerfectColor));
-                    Popup(arabic ? "مثالية ★" : "PERFECT ★", a.transform.position + Vector3.up * (a.HeadTop + .9f), CharacterPuppet.C(_vis.PerfectColor), 1.2f);
+                    Popup(arabic ? "مثالية ★" : "PERFECT ★", a.transform.position + Vector3.up * (a.HeadTopWorld + .9f), CharacterPuppet.C(_vis.PerfectColor), 1.2f);
                     break;
                 case CueKind.Sour:
                     if (a == null) break;
                     a.SetPose(PuppetPose.Sour);
-                    Popup(arabic ? "نشاز!" : "Off-key!", a.transform.position + Vector3.up * (a.HeadTop + .9f), CharacterPuppet.C(_vis.SourColor), 1.1f);
+                    Popup(arabic ? "نشاز!" : "Off-key!", a.transform.position + Vector3.up * (a.HeadTopWorld + .9f), CharacterPuppet.C(_vis.SourColor), 1.1f);
                     break;
-                case CueKind.NotReady: if (a != null) Popup(arabic ? "مو جاهزة" : "Not ready", a.transform.position + Vector3.up * (a.HeadTop + .7f), CharacterPuppet.C(_vis.SourColor), .8f); break;
-                case CueKind.NeedsCharge: if (a != null) Popup(arabic ? "اشحن أول" : "Charge first", a.transform.position + Vector3.up * (a.HeadTop + .7f), CharacterPuppet.C(_vis.SourColor), .8f); break;
-                case CueKind.Confused: if (a != null) { a.SetPose(PuppetPose.Confused); Popup("?", a.transform.position + Vector3.up * (a.HeadTop + .7f), Color.white, .9f); } break;
+                case CueKind.NotReady: if (a != null) Popup(arabic ? "مو جاهزة" : "Not ready", a.transform.position + Vector3.up * (a.HeadTopWorld + .7f), CharacterPuppet.C(_vis.SourColor), .8f); break;
+                case CueKind.NeedsCharge: if (a != null) Popup(arabic ? "اشحن أول" : "Charge first", a.transform.position + Vector3.up * (a.HeadTopWorld + .7f), CharacterPuppet.C(_vis.SourColor), .8f); break;
+                case CueKind.Confused: if (a != null) { a.SetPose(PuppetPose.Confused); Popup("?", a.transform.position + Vector3.up * (a.HeadTopWorld + .7f), Color.white, .9f); } break;
                 case CueKind.FinisherCharge: if (a != null) Rings(c.ActorId, a, c.Rep); break;
                 case CueKind.FinisherFizzle: if (a != null) { Rings(c.ActorId, a, 0); a.SetPose(PuppetPose.Sour); } break;
                 case CueKind.FinisherBeam: if (a != null && t != null) Beam(a, t); break;
@@ -178,6 +195,15 @@ namespace VoiceBattle.UnityLayer
                 case CueKind.Victory: if (a != null) { a.SetPose(PuppetPose.Win); if (c.Line != null) Say(c.ActorId, a, c.Line.Get(arabic), 3f); } break;
                 case CueKind.Defeat: if (a != null && !a.Gone) { a.SetPose(PuppetPose.Lose); if (c.Line != null) Say(c.ActorId, a, c.Line.Get(arabic), 3f); } break;
                 case CueKind.Draw: foreach (var p in _puppets.Values) p.SetPose(PuppetPose.Lose); break;
+                case CueKind.Duet:
+                    if (a != null) Popup(arabic ? "دويتو!" : "DUET!", a.transform.position + Vector3.up * (a.HeadTopWorld + 1.1f), CharacterPuppet.C(_vis.PerfectColor), 1.1f);
+                    break;
+                case CueKind.CrowdBoo:
+                    foreach (var p in _puppets.Values) if (!p.Gone) p.SetPose(PuppetPose.Hit);
+                    _shake = Mathf.Max(_shake, .1f + .3f * c.Intensity);
+                    Popup((arabic ? "بووو! −" : "BOOO! −") + c.Damage.ToString("F0"), new Vector3(0, 6.2f, -1), CharacterPuppet.C(_vis.SourColor), 1.4f);
+                    break;
+                case CueKind.Left: if (a != null) a.SetPose(PuppetPose.Ko); break;
             }
         }
 
@@ -292,7 +318,7 @@ namespace VoiceBattle.UnityLayer
         private void Say(string id, CharacterPuppet p, string line, float seconds = -1)
         {
             if (_bubbles.TryGetValue(id, out var old)) Destroy(old.go);
-            var at = p.transform.position + Vector3.up * (p.HeadTop + 1.0f);
+            var at = p.transform.position + Vector3.up * (p.HeadTopWorld + 1.0f);
             var root = new GameObject("bubble");
             root.transform.position = at;
             var text = Text(line, at + new Vector3(0, 0, -.1f), CharacterPuppet.C(_vis.BubbleText), .11f, 400);

@@ -40,6 +40,9 @@ namespace VoiceBattle.UnityLayer
         /// <summary>World position of the mouth — where projectiles leave from.</summary>
         public Vector3 MouthWorld => _head != null ? _head.TransformPoint(new Vector3(0, -.2f, 0)) : transform.position;
         public float HeadTop => _body.Top + _headShape.Ry * 1.8f;
+        public float Scale { get; private set; } = 1f;
+        /// <summary>Height of the head top above the feet, in world units (scale applied).</summary>
+        public float HeadTopWorld => HeadTop * Scale;
 
         private readonly List<(SpriteRenderer sr, Color baseColor)> _parts = new();
         private BodyShape _body;
@@ -50,10 +53,11 @@ namespace VoiceBattle.UnityLayer
         private float _t, _poseT, _flash, _koT, _phase;
         private int _order;
 
-        public void Build(Character ch, VisualsConfig vis, Vector3 home, int facing, int sortingBase)
+        public void Build(Character ch, VisualsConfig vis, Vector3 home, int facing, int sortingBase, float scale = 1f)
         {
-            Character = ch; Facing = facing; _home = home; _order = sortingBase; _phase = Random.value * 10f;
+            Character = ch; Facing = facing; _home = home; _order = sortingBase; _phase = Random.value * 10f; Scale = scale;
             transform.position = home;
+            transform.localScale = new Vector3(scale, scale, 1);
             _root = new GameObject("rig").transform;
             _root.SetParent(transform, false);
             _root.localScale = new Vector3(facing, 1, 1);
@@ -188,7 +192,7 @@ namespace VoiceBattle.UnityLayer
                     _koT += dt;
                     float k = _koT / .9f;
                     rot -= Facing * k * 3 * Mathf.PI * 2;
-                    ox -= Facing * k * 8; oy += k * 7;
+                    ox -= Facing * k * 8; oy += k * 7; // world units: the puppet leaves the stage whatever its size
                     if (k > 1.3f) { Gone = true; gameObject.SetActive(false); return; }
                     break;
             }

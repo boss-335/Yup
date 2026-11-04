@@ -12,8 +12,12 @@
     <ProjectReference Include="..\VoiceMatch.Core\VoiceMatch.Core.csproj" />
     <ProjectReference Include="..\BattleRules.Core\BattleRules.Core.csproj" />
     <ProjectReference Include="..\VoiceBattle.Sounds\VoiceBattle.Sounds.csproj" />
+    <ProjectReference Include="..\VoiceBattle.Net\VoiceBattle.Net.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="VoiceBattle.Session.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Concentus" Version="2.2.2" />
   </ItemGroup>
 </Project>

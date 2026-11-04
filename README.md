@@ -2,7 +2,7 @@
 
 لعبة قتال جماعية: **غنّي عشان تضرب**. وثيقة التصميم الكاملة: [`docs/voice-battle-gdd.md`](docs/voice-battle-gdd.md).
 المراحل المنجزة: **M0 — محرّك المطابقة** ([تقرير](docs/m0-report.md)) و **M1 — القتال المحلي** ([تقرير](docs/m1-report.md)): مكتبات C# مستقلة عن Unity + أداة سطر أوامر + اختبارات + سكربتات Unity.
-حركاتي وأصواتي: [`docs/my-moves-and-sounds.md`](docs/my-moves-and-sounds.md) · الشكل البصري والشخصيات: [`docs/art-direction.md`](docs/art-direction.md) — ومعاينة تفاعلية تفتحها بأي متصفح: [`docs/preview/roster.html`](docs/preview/roster.html).
+اللعب أونلاين (فرق، ساحة المعركة): [`docs/online.md`](docs/online.md) · حركاتي وأصواتي: [`docs/my-moves-and-sounds.md`](docs/my-moves-and-sounds.md) · الشكل البصري والشخصيات: [`docs/art-direction.md`](docs/art-direction.md) — ومعاينة تفاعلية تفتحها بأي متصفح: [`docs/preview/roster.html`](docs/preview/roster.html).
 
 > كل شي يشتغل **محلياً على جهازك بدون إنترنت** بعد أول `restore` (يحمّل حزم NuGet مرة وحدة).
 
@@ -95,12 +95,16 @@ src/VoiceMatch.Core.Tests/   اختبارات xUnit
 src/BattleRules.Core/        منطق القتال (HP، الشحن، التبريد، الضرر، الحزم والتراخيص، بوت التدريب) بدون Unity
 src/VoiceBattle.Session/     يربط المكتبتين: تقطيع المايك، التعرّف على الحركة المغنّاة، جلسة التدريب، تعليم الحركات
 src/VoiceBattle.Sounds/      أصوات اللاعبين (§5.4): الرفع والفحوصات، المكتبة، البلاغات، الإزالة
+src/VoiceBattle.Net/         اللعب أونلاين: البروتوكول، السيرفر الحاكم (غرف، لعب سريع، بوتات)، TCP
+tools/voice-battle-server/   برنامج السيرفر
 unity/                       سكربتات Unity (انظر unity/README.md)
 tools/matcher-lab/           أداة سطر الأوامر
 data/match_config.json       كل العتبات والأوزان (لا شيء ثابت في الكود)
 data/moves.json, battle.json إعدادات الحركات والمباراة والبوت
 data/characters.json         الشخصيات (شكل فقط، بدون قوة)
 data/visuals.json            ألوان المسرح وتوقيتات المؤثرات
+data/modes.json              الأوضاع: مبارزة، فرق ٢×٢ و٤×٤، الكل ضد الكل، ساحة المعركة
+data/server.json, voice.json إعدادات السيرفر والدردشة الصوتية
 tools/preview/               يبني docs/preview/roster.html من ملفات data
 data/melodies/*.json         ألحان الملك العام مكتوبة يدوياً (المصدر)
 data/midi/*.mid              المراجع المولّدة منها

@@ -1,0 +1,29 @@
+{
+  "_comment": "Match modes (GDD §4). teams = 0 means every player for themself. Targeting: automatic = weakest opponent, and a player may lock a target (GDD §12 Q3).",
+  "modes": [
+    {
+      "id": "duel", "name": { "ar": "مبارزة", "en": "Duel" },
+      "teams": 2, "team_size": 1, "min_players": 2, "max_players": 2, "duration_ms": 180000
+    },
+    {
+      "id": "team_2v2", "name": { "ar": "فرق ٢ ضد ٢", "en": "Teams 2v2" },
+      "teams": 2, "team_size": 2, "min_players": 4, "max_players": 4, "duration_ms": 180000,
+      "duet": { "window_ms": 1500, "bonus": 0.2 }
+    },
+    {
+      "id": "team_4v4", "name": { "ar": "فرق ٤ ضد ٤", "en": "Teams 4v4" },
+      "teams": 2, "team_size": 4, "min_players": 8, "max_players": 8, "duration_ms": 240000,
+      "duet": { "window_ms": 1500, "bonus": 0.2 }
+    },
+    {
+      "id": "ffa", "name": { "ar": "الكل ضد الكل", "en": "Free for all" },
+      "teams": 0, "min_players": 3, "max_players": 8, "duration_ms": 180000
+    },
+    {
+      "id": "battle_ground", "name": { "ar": "ساحة المعركة", "en": "Battle Ground" },
+      "teams": 0, "min_players": 4, "max_players": 16, "duration_ms": 300000,
+      "crowd": { "start_ms": 90000, "interval_ms": 10000, "damage": 2, "growth": 1 },
+      "fill_with_bots": true
+    }
+  ]
+}

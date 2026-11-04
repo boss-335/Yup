@@ -106,6 +106,21 @@ public class BattlePresenterTests
     }
 
     [Fact]
+    public void BigLobby_SkipsOpeningLines_AndTeamWinCheersEveryMember()
+    {
+        var ids = Enumerable.Range(1, 6).Select(i => "f" + i).ToList();
+        var p = new BattlePresenter(D.Data.Visuals, D.Data.Battle, D.Data.Characters,
+            ids.ToDictionary(i => i, _ => "qattous"), ids.ToDictionary(i => i, i => int.Parse(i.Substring(1)) <= 3 ? "A" : "B"));
+        var start = p.From(new BattleEvent(0, BattleEventKind.MatchStarted, ""));
+        Assert.DoesNotContain(start, c => c.Kind == CueKind.Taunt);
+        var end = p.From(new BattleEvent(9000, BattleEventKind.MatchEnded, "", "A", Detail: "knockout"));
+        Assert.Equal(new[] { "f1", "f2", "f3" }, end.Where(c => c.Kind == CueKind.Victory).Select(c => c.ActorId).OrderBy(x => x));
+        Assert.Equal(3, end.Count(c => c.Kind == CueKind.Defeat));
+        Assert.Single(p.From(new BattleEvent(100, BattleEventKind.CrowdPressure, "", Damage: 4, Rep: 3)), c => c.Kind == CueKind.CrowdBoo && c.Damage == 4);
+        Assert.Single(p.From(new BattleEvent(100, BattleEventKind.Hit, "f1", "f4", MoveSlot.Light, .8f, 3, Detail: "duet")), c => c.Kind == CueKind.Duet);
+    }
+
+    [Fact]
     public void Hit_AttackThenImpactAfterTravel()
     {
         var (b, _, cues) = Setup();
@@ -248,4 +263,46 @@ public class SfxSynthTests
     [Fact]
     public void ImpactGetsLouderWithIntensity()
         => Assert.True(SfxSynth.Render(Sfx.Impact, 48000, 1f).Max(Math.Abs) > SfxSynth.Render(Sfx.Impact, 48000, .2f).Max(Math.Abs) * 1.5f);
+}
+
+public class StageLayoutTests
+{
+    private static List<(string, string)> Solo(int n) => Enumerable.Range(1, n).Select(i => ($"p{i}", $"p{i}")).ToList();
+
+    [Fact]
+    public void Duel_OneEachSide_FacingEachOther()
+    {
+        var s = StageLayout.Arrange(Solo(2), false);
+        Assert.True(s[0].X < 0 && s[1].X > 0);
+        Assert.Equal(1, s[0].Facing); Assert.Equal(-1, s[1].Facing);
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(4)]
+    public void Teams_SplitLeftAndRight(int perTeam)
+    {
+        var f = Enumerable.Range(0, perTeam * 2).Select(i => ($"f{i}", i < perTeam ? "A" : "B")).ToList();
+        var s = StageLayout.Arrange(f, true);
+        Assert.All(s.Where(x => x.FighterId.StartsWith("f") && int.Parse(x.FighterId.Substring(1)) < perTeam), x => { Assert.True(x.X < 0); Assert.Equal(1, x.Facing); });
+        Assert.All(s.Where(x => int.Parse(x.FighterId.Substring(1)) >= perTeam), x => { Assert.True(x.X > 0); Assert.Equal(-1, x.Facing); });
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(8)]
+    [InlineData(16)]
+    public void Crowd_FitsOnStage_WithoutOverlap(int n)
+    {
+        var s = StageLayout.Arrange(Solo(n), false);
+        Assert.Equal(n, s.Count);
+        Assert.All(s, x => Assert.InRange(x.X, -StageLayout.HalfWidth, StageLayout.HalfWidth));
+        foreach (var row in s.GroupBy(x => x.Y))
+        {
+            var xs = row.OrderBy(x => x.X).ToList();
+            for (int i = 1; i < xs.Count; i++)
+                Assert.True(xs[i].X - xs[i - 1].X >= StageLayout.PuppetWidth * Math.Max(xs[i].Scale, xs[i - 1].Scale) * .9f, $"overlap in row y={row.Key} at {i}");
+        }
+        Assert.Equal(n, s.Select(x => x.FighterId).Distinct().Count());
+    }
 }

@@ -17,6 +17,7 @@
   <ItemGroup>
     <None Include="..\..\data\moves.json" Link="data\moves.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\data\battle.json" Link="data\battle.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\data\modes.json" Link="data\modes.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\data\Packs\*.json" Link="data\Packs\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

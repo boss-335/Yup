@@ -7,6 +7,8 @@ namespace VoiceBattle.Session.Presentation
     {
         MatchIntro, AttackLight, AttackHeavy, Impact, Perfect, Sour, NotReady,
         FinisherRep, FinisherBeam, Knockout, Victory, Defeat, Confused, Crowd,
+        /// <summary>Crowd booing (Battle Ground pressure).</summary>
+        Boo,
     }
 
     /// <summary>
@@ -31,6 +33,9 @@ namespace VoiceBattle.Session.Presentation
             CueKind.Victory => Sfx.Victory,
             CueKind.Defeat or CueKind.Draw => Sfx.Defeat,
             CueKind.Confused => Sfx.Confused,
+            CueKind.Duet => Sfx.Perfect,
+            CueKind.CrowdBoo => Sfx.Boo,
+            CueKind.Left => Sfx.NotReady,
             _ => null,
         };
 
@@ -54,6 +59,7 @@ namespace VoiceBattle.Session.Presentation
                 case Sfx.Confused: return Sweep(sampleRate, .3, 300, 520, .3, Wave.Sine, wobbleHz: 9);
                 case Sfx.MatchIntro: return Mix(DrumRoll(sampleRate, .8, rng), Delay(Notes(sampleRate, new[] { 72, 79 }, .12, .5, .3, Wave.Square), sampleRate, .8));
                 case Sfx.Crowd: return Cheer(sampleRate, 3, rng, .12f);
+                case Sfx.Boo: return Mix(Cheer(sampleRate, 1.2, rng, .3f), Sweep(sampleRate, 1.2, 140, 95, .35, Wave.Saw, wobbleHz: 4));
                 default: return Array.Empty<float>();
             }
         }

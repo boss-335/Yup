@@ -56,6 +56,14 @@ namespace VoiceBattle.Session
         /// <summary>data/sounds.json — taught moves and user sounds.</summary>
         public SoundsConfig Sounds { get; }
 
+        /// <summary>data/modes.json — duel, teams, free-for-all, Battle Ground.</summary>
+        public ModeCatalog Modes => _modes ??= ModeCatalog.Load(Path.Combine(DataDir, "modes.json"));
+        private ModeCatalog? _modes;
+
+        /// <summary>data/voice.json — voice chat codec and muting.</summary>
+        public Online.VoiceConfig Voice => _voice ??= Online.VoiceConfig.Load(Path.Combine(DataDir, "voice.json"));
+        private Online.VoiceConfig? _voice;
+
         /// <summary>data/characters.json — cosmetic roster.</summary>
         public CharacterRoster Characters { get; }
 

@@ -20,6 +20,8 @@ namespace VoiceBattle.UnityLayer
         public float calibrationSeconds = 1f;
 
         public event Action<Performance>? TakeCaptured;
+        /// <summary>Every new block of mono mic samples (for voice chat). Game thread.</summary>
+        public event Action<float[], int>? RawSamples;
 
         public PerformanceCapture? Capture { get; private set; }
         public int SampleRate { get; private set; }
@@ -93,6 +95,7 @@ namespace VoiceBattle.UnityLayer
                 if (_calibrationLeft == 0) Capture.Calibrate(_calibration);
             }
 
+            if (RawSamples != null) RawSamples(span.ToArray(), SampleRate);
             var take = Capture.Push(span);
             if (take != null) TakeCaptured?.Invoke(take);
         }

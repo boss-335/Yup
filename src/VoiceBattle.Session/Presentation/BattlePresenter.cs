@@ -9,6 +9,12 @@ namespace VoiceBattle.Session.Presentation
     {
         MatchIntro, Taunt, Attack, Impact, Perfect, Sour, NotReady, NeedsCharge,
         FinisherCharge, FinisherBeam, FinisherFizzle, Knockout, Victory, Defeat, Draw, Confused,
+        /// <summary>Team modes: a teammate's follow-up hit got the duet bonus.</summary>
+        Duet,
+        /// <summary>Battle Ground: the crowd boos everyone standing (Damage = per fighter).</summary>
+        CrowdBoo,
+        /// <summary>A player left the match.</summary>
+        Left,
     }
 
     /// <summary>One thing the stage should show, at a given time. <see cref="Intensity"/> is 0..1.</summary>
@@ -26,14 +32,28 @@ namespace VoiceBattle.Session.Presentation
         private readonly BattleConfig _battle;
         private readonly CharacterRoster _roster;
         private readonly IReadOnlyDictionary<string, string> _characterOf;
+        private readonly IReadOnlyDictionary<string, string> _teamOf;
 
-        public BattlePresenter(VisualsConfig fx, BattleConfig battle, CharacterRoster roster, IReadOnlyDictionary<string, string> characterOfFighter)
+        /// <param name="teamOfFighter">Team per fighter (team modes); omitted = everyone on their own.</param>
+        /// <param name="strictCharacters">False online: an unknown character id (newer client) falls back to the first one.</param>
+        public BattlePresenter(VisualsConfig fx, BattleConfig battle, CharacterRoster roster, IReadOnlyDictionary<string, string> characterOfFighter,
+                               IReadOnlyDictionary<string, string>? teamOfFighter = null, bool strictCharacters = true)
         {
             _fx = fx; _battle = battle; _roster = roster; _characterOf = characterOfFighter;
-            foreach (var id in characterOfFighter.Values) roster.Get(id); // fail fast on unknown characters
+            _teamOf = teamOfFighter ?? characterOfFighter.Keys.ToDictionary(k => k, k => k);
+            _strict = strictCharacters;
+            if (strictCharacters) foreach (var id in characterOfFighter.Values) roster.Get(id); // fail fast on unknown characters
         }
 
-        public Character CharacterOf(string fighterId) => _roster.Get(_characterOf[fighterId]);
+        private readonly bool _strict;
+        public const int MaxTaunts = 4;
+
+        public Character CharacterOf(string fighterId)
+        {
+            if (!_characterOf.TryGetValue(fighterId, out var cid)) return _roster.All[0];
+            if (_strict) return _roster.Get(cid);
+            return _roster.All.FirstOrDefault(c => c.Id == cid) ?? _roster.All[0];
+        }
 
         public IReadOnlyList<Cue> From(BattleEvent e)
         {
@@ -42,9 +62,13 @@ namespace VoiceBattle.Session.Presentation
             {
                 case BattleEventKind.MatchStarted:
                     cues.Add(new Cue(CueKind.MatchIntro, e.AtMs, ""));
-                    int i = 0;
-                    foreach (var f in _characterOf.Keys)
-                        cues.Add(new Cue(CueKind.Taunt, e.AtMs + 400 + 700L * i++, f, Line: CharacterOf(f).Taunt));
+                    // Opening lines only in small matches: 16 Battle Ground taunts would take 11 s.
+                    if (_characterOf.Count <= MaxTaunts)
+                    {
+                        int i = 0;
+                        foreach (var f in _characterOf.Keys)
+                            cues.Add(new Cue(CueKind.Taunt, e.AtMs + 400 + 700L * i++, f, Line: CharacterOf(f).Taunt));
+                    }
                     break;
 
                 case BattleEventKind.Hit:
@@ -55,6 +79,7 @@ namespace VoiceBattle.Session.Presentation
                     cues.Add(new Cue(CueKind.Attack, e.AtMs, e.ActorId, e.TargetId, e.Slot, intensity));
                     cues.Add(new Cue(CueKind.Impact, e.AtMs + fx.TravelMs, e.ActorId, e.TargetId, e.Slot, intensity, e.Damage));
                     if (e.Kind == BattleEventKind.PerfectHit) cues.Add(new Cue(CueKind.Perfect, e.AtMs + fx.TravelMs, e.ActorId, e.TargetId, e.Slot, 1f));
+                    if (e.Detail == "duet") cues.Add(new Cue(CueKind.Duet, e.AtMs + fx.TravelMs, e.ActorId, e.TargetId, e.Slot, 1f));
                     break;
                 }
 
@@ -98,16 +123,28 @@ namespace VoiceBattle.Session.Presentation
                                      e.ActorId, e.TargetId, Intensity: 1f));
                     break;
 
+                case BattleEventKind.CrowdPressure:
+                    cues.Add(new Cue(CueKind.CrowdBoo, e.AtMs, "", Intensity: Clamp01(e.Damage / 10f), Damage: e.Damage, Rep: e.Rep));
+                    break;
+
+                case BattleEventKind.Forfeit:
+                    cues.Add(new Cue(CueKind.Left, e.AtMs, e.ActorId));
+                    break;
+
                 case BattleEventKind.MatchEnded:
                 {
                     long at = e.AtMs + _fx.KoFlyMs + 300;
                     bool draw = e.Detail != null && e.Detail.StartsWith("draw");
-                    if (draw || string.IsNullOrEmpty(e.ActorId))
+                    // Winner: the fighter (solo) or every member of the winning team (TargetId carries the team).
+                    var winners = !string.IsNullOrEmpty(e.ActorId) ? new HashSet<string> { e.ActorId }
+                                : e.TargetId != null ? new HashSet<string>(_teamOf.Where(kv => kv.Value == e.TargetId).Select(kv => kv.Key))
+                                : new HashSet<string>();
+                    if (draw || winners.Count == 0)
                         cues.Add(new Cue(CueKind.Draw, at, ""));
                     else
                     {
-                        cues.Add(new Cue(CueKind.Victory, at, e.ActorId, Line: CharacterOf(e.ActorId).Win));
-                        foreach (var f in _characterOf.Keys.Where(f => f != e.ActorId))
+                        foreach (var w in winners) cues.Add(new Cue(CueKind.Victory, at, w, Line: CharacterOf(w).Win));
+                        foreach (var f in _characterOf.Keys.Where(f => !winners.Contains(f)))
                             cues.Add(new Cue(CueKind.Defeat, at + 500, f, Line: CharacterOf(f).Lose));
                     }
                     break;

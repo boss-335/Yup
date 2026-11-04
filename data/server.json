@@ -1,0 +1,18 @@
+{
+  "_comment": "Online server tunables (VoiceBattle.Net.GameServer).",
+  "port": 7777,
+  "snapshot_hz": 10,
+  "countdown_ms": 5000,
+  "quickmatch_wait_ms": 15000,
+  "results_ms": 10000,
+  "min_perform_interval_ms": 400,
+  "duration_slack": 0.35,
+  "name_max_chars": 20,
+  "room_code_length": 5,
+  "max_rooms": 500,
+  "max_bad_messages": 20,
+  "voice_max_bytes": 1200,
+  "voice_max_per_second": 60,
+  "bot_characters": ["robo_tarab", "qattous", "chef_dandana", "teta_soprano", "diva_noor", "abu_sawt"],
+  "bot_loadout": { "light": "fur_elise_a", "heavy": "ode_to_joy_a", "finisher": "beethoven5_a" }
+}

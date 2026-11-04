@@ -21,6 +21,11 @@ damage, charge, cooldowns, finisher, training bot — lives in `src/` and is cov
 
 Re-run the sync script after any change in `src/` or `data/`. The copied DLLs and `StreamingAssets/data` are git-ignored.
 
+## Online
+Add **NetworkMatch** + **OnlineHud** to a GameObject in a new scene (NetworkMatch adds MicCapture and AudioSource).
+Run a server (`dotnet run --project tools/voice-battle-server -c Release`), type its address in the overlay, Connect,
+then Quick match a mode or create a room and share its code. Use headphones. Details: `docs/online.md`.
+
 ## Playing
 - Stay quiet for one second while the mic calibrates, then press **Start training match**.
 - Before starting, the ▶ buttons play each snippet so you can learn it.
@@ -38,4 +43,6 @@ Re-run the sync script after any change in `src/` or `data/`. The copied DLLs an
 | `StageView.cs` | Builds the stage and the two characters, plays BattlePresenter cues (projectiles, impacts, perfect, off-key, finisher rings + beam, K.O., speech bubbles) |
 | `CharacterPuppet.cs` | A character made of procedural shapes; idle style, lip-sync from the mic level, poses. Same geometry as `docs/preview/roster.html` |
 | `Shapes.cs` | Generates the sprites (circle, rounded rect, triangle, note, star, rings, gradient, spotlight cone) |
+| `NetworkMatch.cs` | Online: connects to the server, analyses takes on a worker thread and sends the result, voice chat in/out, builds the stage for up to 16 |
+| `OnlineHud.cs` | Online overlay: quick match / rooms by code per mode, teams, ready/start, HP list, target lock, mute, placements |
 | `TrainingHud.cs` | Developer overlay (IMGUI): HP, charge, cooldowns, last score breakdown, event log |

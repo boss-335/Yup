@@ -11,6 +11,8 @@ Read `docs/voice-battle-gdd.md` (Arabic) §0 first: it is the binding spec. `doc
 
 - **Taught moves & user sounds — implemented (core + CLI + Unity teach panel)**, see docs/my-moves-and-sounds.md. Public uploads disabled (`public_uploads_enabled: false`) until IP-lawyer review; friends/public sharing fails closed until fingerprint + moderation providers are chosen. Hosting (own server vs Steam Workshop) still open.
 
+- **Online (M2) + modes (M3/M4) — implemented**, see docs/online.md: modes in `data/modes.json` (duel, team_2v2, team_4v4, ffa, battle_ground with crowd pressure), teams/duet/target lock/forfeit/placements in `Battle`, authoritative `VoiceBattle.Net.GameServer` + TCP host (`tools/voice-battle-server`), client `OnlineSession` (local analysis, Opus voice chat), Unity `NetworkMatch`/`OnlineHud`. No auth/TLS/NAT traversal yet — friends/LAN only.
+
 ## Commands
 ```bash
 dotnet test VoiceBattle.sln                                    # all unit tests (~10 s)
@@ -22,6 +24,7 @@ dotnet run --project tools/matcher-lab -c Release -- eval --manifest recordings/
 dotnet run --project tools/matcher-lab -c Release -- battle --skill average   # full V1 match through the real pipeline
 dotnet run --project tools/matcher-lab -- teach --slot heavy --name <name> --takes a.wav b.wav   # teach a move by singing
 dotnet run --project tools/matcher-lab -- upload --file x.wav --title <title> --attest           # user-sound upload checks
+dotnet run --project tools/voice-battle-server -c Release      # online server on port 7777 (data/server.json)
 unity/sync.sh                                                  # build DLLs + copy data into the Unity project
 python3 tools/preview/build.py                                 # rebuild docs/preview/roster.html after editing characters/visuals
 ```
@@ -48,6 +51,13 @@ python3 tools/preview/build.py                                 # rebuild docs/pr
 - Never flip `public_uploads_enabled` to true without the owner confirming the lawyer review (GDD §11 M6).
 - `VoiceBattle.Sounds` depends on `VoiceMatch.Core` only (it must run on a server); slot ranges come in as a delegate from `GameData.SlotsFor`.
 - No song titles or lyrics in data: move and sound names are typed by players.
+
+## Online rules
+- The server is authoritative: clients never apply damage themselves; they send `Perform` and draw what the server broadcasts.
+- No audio of a take goes to the server — only the analysed result. Voice chat is relayed, never stored or analysed server-side.
+- Taught moves online send slot, player-typed title and length only (their contour stays on the device). A future ranked mode must exclude them and recompute accuracy server-side.
+- Strangers' voice starts muted (GDD §9); keep `mute_strangers_by_default` true.
+- `VoiceBattle.Net` depends on `BattleRules.Core` only. Every server limit lives in `data/server.json`.
 
 ## Presentation rules
 - Characters are cosmetic only: `CharacterRoster` rejects gameplay-stat keys. Never give a character a gameplay effect.
