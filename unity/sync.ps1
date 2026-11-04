@@ -12,8 +12,9 @@ New-Item -ItemType Directory -Force $out, "$data/Packs", "$data/midi" | Out-Null
 foreach ($dll in "VoiceMatch.Core", "VoiceBattle.Session", "VoiceBattle.Sounds", "VoiceBattle.Net", "BattleRules.Core", "NVorbis", "NLayer", "Concentus", "System.Text.Json", "System.Text.Encodings.Web", "Microsoft.Bcl.AsyncInterfaces") {
     Copy-Item "$tmp/$dll.dll" $out -Force
 }
-Copy-Item data/match_config.json, data/moves.json, data/battle.json, data/characters.json, data/visuals.json, data/sounds.json, data/modes.json, data/voice.json $data -Force
+Copy-Item data/match_config.json, data/moves.json, data/battle.json, data/characters.json, data/visuals.json, data/sounds.json, data/modes.json, data/voice.json, data/steam.json $data -Force
 Copy-Item data/Packs/*.json "$data/Packs" -Force
 Copy-Item data/midi/*.mid "$data/midi" -Force
 Remove-Item -Recurse -Force $tmp
+(Get-Date).ToUniversalTime().ToString("o") | Set-Content "$out/.sync-stamp"   # Unity's EngineSync skips its own rebuild when nothing is newer
 Write-Host "Synced DLLs to $out and data to $data"

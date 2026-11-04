@@ -142,8 +142,14 @@ public class OnlineSessionTests
             Assert.True(s.Send(analysis));
         }
         var enemies = a.State.Match.Fighters.Where(f => f.Team != a.State.Me!.Team).Select(f => f.Id).ToHashSet();
-        await Pump(() => a.State.Last?.Fighters.Count(f => f.Hp < 100 && enemies.Contains(f.Id)) > 0, a, b);
-        var cues = a.TakeCues();
+        // Both sends race each other over TCP: wait until A has drawn B's attack and an impact, not just the first hit.
+        var cues = new List<Cue>();
+        await Pump(() =>
+        {
+            cues.AddRange(a.TakeCues());
+            return a.State.Last?.Fighters.Count(f => f.Hp < 100 && enemies.Contains(f.Id)) > 0
+                && cues.Any(c => c.Kind == CueKind.Attack && c.ActorId == b.State.PlayerId) && cues.Any(c => c.Kind == CueKind.Impact);
+        }, a, b);
         Assert.Contains(cues, c => c.Kind == CueKind.Attack && c.ActorId == b.State.PlayerId);
         Assert.Contains(cues, c => c.Kind == CueKind.Impact);
         Assert.Contains(cues, c => c.Kind == CueKind.Taunt);
@@ -156,5 +162,135 @@ public class OnlineSessionTests
         await Pump(() => { b.Voice.Read(buf); heard += buf.Sum(v => v * (double)v); return heard > 1; }, a, b);
         int aVoice = b.State.Room!.Players.Single(p => p.Id == a.State.PlayerId).Voice;
         Assert.False(b.Voice.IsMuted(aVoice));
+    }
+}
+
+public class JoinInfoTests
+{
+    [Fact]
+    public void ConnectString_RoundTrips()
+    {
+        var j = new JoinInfo("vb.example.com", 7777, "AB2CD");
+        Assert.Equal("+vb_server vb.example.com:7777 +vb_room AB2CD", j.ToConnectString());
+        Assert.Equal(j, JoinInfo.Parse(j.ToConnectString()));
+    }
+
+    [Fact]
+    public void ParsesLaunchCommandLine_AmongOtherArgs() =>
+        Assert.Equal(new JoinInfo("192.168.1.20", 7777, "XYZ12"), JoinInfo.Parse("-batchmode +vb_server 192.168.1.20:7777 +vb_room xyz12 -foo"));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("+vb_server host +vb_room ABCDE")]          // no port
+    [InlineData("+vb_server host:99999 +vb_room ABCDE")]    // bad port
+    [InlineData("+vb_server ev il:7777 +vb_room ABCDE")]    // split host
+    [InlineData("+vb_server host;rm:7777 +vb_room ABCDE")]  // odd characters
+    [InlineData("+vb_server host:7777 +vb_room A!")]
+    public void RejectsMalformed(string? s) => Assert.Null(JoinInfo.Parse(s));
+
+    [Fact]
+    public void LobbyInviteArgument()
+    {
+        Assert.Equal(109775241234567890UL, JoinInfo.LobbyFromCommandLine("+connect_lobby 109775241234567890"));
+        Assert.Null(JoinInfo.LobbyFromCommandLine("+connect_lobby nope"));
+    }
+}
+
+public class SteamConfigTests
+{
+    private static string Data(string f) => Path.Combine(AppContext.BaseDirectory, "data", f);
+
+    [Fact]
+    public void ShippedConfig_MatchesServer()
+    {
+        var client = SteamConfig.Load(Data("steam.json"));
+        var server = ServerConfig.Load(Data("server.json"));
+        Assert.Equal((uint)server.SteamAppId, client.AppId);
+        Assert.Equal(server.SteamIdentity, client.TicketIdentity);
+    }
+
+    [Fact]
+    public void MissingFile_UsesTestApp()
+    {
+        var c = SteamConfig.Load(Path.Combine(Path.GetTempPath(), "no_such_steam.json"));
+        Assert.True(c.IsTestApp);
+        Assert.Equal("voicebattle", c.TicketIdentity);
+    }
+
+    [Theory]
+    [InlineData("{\"app_id\":0}")]
+    [InlineData("{\"ticket_identity\":\" \"}")]
+    [InlineData("{\"max_party_members\":1}")]
+    [InlineData("{\"max_party_members\":251}")]
+    public void RejectsBadValues(string json) => Assert.Throws<FormatException>(() => SteamConfig.Parse(json));
+
+    [Fact]
+    public void ParsesOwnApp()
+    {
+        var c = SteamConfig.Parse("{\"app_id\":3456780,\"ticket_identity\":\"vb\",\"relaunch_through_steam\":false}");
+        Assert.Equal(3456780u, c.AppId);
+        Assert.False(c.IsTestApp);
+        Assert.False(c.RelaunchThroughSteam);
+        Assert.Equal("vb", c.TicketIdentity);
+    }
+
+    [Fact]
+    public void CommandLineJoin() =>
+        Assert.Equal("ROOM1", SteamConfig.JoinFromCommandLine(new[] { "game.exe", "+vb_server", "h:7777", "+vb_room", "room1" })!.RoomCode);
+}
+
+/// <summary>The Unity project must get the same engine + data from sync.sh, sync.ps1 and the Editor's EngineSync.</summary>
+public class UnityProjectTests
+{
+    private static string Repo()
+    {
+        var d = new DirectoryInfo(AppContext.BaseDirectory);
+        while (d != null && !File.Exists(Path.Combine(d.FullName, "VoiceBattle.sln"))) d = d.Parent;
+        return d?.FullName ?? throw new DirectoryNotFoundException("repo root");
+    }
+
+    private static string[] Quoted(string text) =>
+        System.Text.RegularExpressions.Regex.Matches(text, "\"([A-Za-z0-9_.]+)\"").Select(m => m.Groups[1].Value).ToArray();
+
+    [Fact]
+    public void SyncScripts_AndEditor_CopyTheSameFiles()
+    {
+        string root = Repo();
+        string sh = File.ReadAllText(Path.Combine(root, "unity", "sync.sh"));
+        string ps = File.ReadAllText(Path.Combine(root, "unity", "sync.ps1"));
+        string cs = File.ReadAllText(Path.Combine(root, "unity", "Assets", "VoiceBattle", "Editor", "Sync", "EngineSync.cs"));
+
+        var shDlls = System.Text.RegularExpressions.Regex.Match(sh, @"for dll in ([^;]+);").Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var psDlls = Quoted(System.Text.RegularExpressions.Regex.Match(ps, @"foreach \(\$dll in ([^)]+)\)").Groups[1].Value);
+        var csDlls = Quoted(System.Text.RegularExpressions.Regex.Match(cs, @"Dlls =\s*\{([^}]+)\}").Groups[1].Value);
+        Assert.NotEmpty(shDlls);
+        Assert.Equal(shDlls.OrderBy(x => x), psDlls.OrderBy(x => x));
+        Assert.Equal(shDlls.OrderBy(x => x), csDlls.OrderBy(x => x));
+
+        var shData = System.Text.RegularExpressions.Regex.Matches(sh, @"data/([a-z_]+\.json)").Select(m => m.Groups[1].Value).Distinct();
+        var psData = System.Text.RegularExpressions.Regex.Matches(ps, @"data/([a-z_]+\.json)").Select(m => m.Groups[1].Value).Distinct();
+        var csData = Quoted(System.Text.RegularExpressions.Regex.Match(cs, @"DataFiles =\s*\{([^}]+)\}").Groups[1].Value);
+        Assert.Equal(shData.OrderBy(x => x), psData.OrderBy(x => x));
+        Assert.Equal(shData.OrderBy(x => x), csData.OrderBy(x => x));
+    }
+
+    [Fact]
+    public void EveryClientDataFile_IsSynced()
+    {
+        string root = Repo();
+        string cs = File.ReadAllText(Path.Combine(root, "unity", "Assets", "VoiceBattle", "Editor", "Sync", "EngineSync.cs"));
+        var synced = Quoted(System.Text.RegularExpressions.Regex.Match(cs, @"DataFiles =\s*\{([^}]+)\}").Groups[1].Value).ToHashSet();
+        var serverOnly = new HashSet<string> { "server.json" };
+        foreach (var f in Directory.GetFiles(Path.Combine(root, "data"), "*.json").Select(Path.GetFileName))
+            if (!serverOnly.Contains(f!)) Assert.Contains(f!, synced);
+    }
+
+    [Fact]
+    public void SteamAppIdFile_MatchesSteamJson()
+    {
+        string root = Repo();
+        var cfg = SteamConfig.Load(Path.Combine(root, "data", "steam.json"));
+        Assert.Equal(cfg.AppId.ToString(), File.ReadAllText(Path.Combine(root, "unity", "steam_appid.txt")).Trim());
     }
 }

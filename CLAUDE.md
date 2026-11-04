@@ -11,7 +11,8 @@ Read `docs/voice-battle-gdd.md` (Arabic) §0 first: it is the binding spec. `doc
 
 - **Taught moves & user sounds — implemented (core + CLI + Unity teach panel)**, see docs/my-moves-and-sounds.md. Public uploads disabled (`public_uploads_enabled: false`) until IP-lawyer review; friends/public sharing fails closed until fingerprint + moderation providers are chosen. Hosting (own server vs Steam Workshop) still open.
 
-- **Online (M2) + modes (M3/M4) — implemented**, see docs/online.md: modes in `data/modes.json` (duel, team_2v2, team_4v4, ffa, battle_ground with crowd pressure), teams/duet/target lock/forfeit/placements in `Battle`, authoritative `VoiceBattle.Net.GameServer` + TCP host (`tools/voice-battle-server`), client `OnlineSession` (local analysis, Opus voice chat), Unity `NetworkMatch`/`OnlineHud`. No auth/TLS/NAT traversal yet — friends/LAN only.
+- **Steam + portable project — implemented**, see docs/steam.md: Steamworks.NET 2025.164.1 (`unity/Packages/manifest.json`), `SteamBridge` (name, Web API login ticket, friends-only lobby + rich presence invites; stub without the package), server `SteamWebApiAuthenticator` (`VB_AUTH=steam` + `VB_STEAM_WEBAPI_KEY`), `data/steam.json`. `unity/` is a full Unity project: `MainMenu`, Editor `EngineSync` (auto dotnet sync, own asmdef) + `VoiceBattleEditor` (main scene, builds), `setup.sh`/`setup.ps1`, `Dockerfile`, `tools/steam` (SteamPipe upload). Still AppID 480 until the owner registers the game; Unity/Steam not yet run in a real Editor.
+- **Online (M2) + modes (M3/M4) — implemented**, see docs/online.md: modes in `data/modes.json` (duel, team_2v2, team_4v4, ffa, battle_ground with crowd pressure), teams/duet/target lock/forfeit/placements in `Battle`, authoritative `VoiceBattle.Net.GameServer` + TCP host (`tools/voice-battle-server`), client `OnlineSession` (local analysis, Opus voice chat), Unity `NetworkMatch`/`OnlineHud`. No TLS/NAT traversal yet — friends/LAN only (Steam login exists, see above).
 
 ## Commands
 ```bash
@@ -25,7 +26,11 @@ dotnet run --project tools/matcher-lab -c Release -- battle --skill average   # 
 dotnet run --project tools/matcher-lab -- teach --slot heavy --name <name> --takes a.wav b.wav   # teach a move by singing
 dotnet run --project tools/matcher-lab -- upload --file x.wav --title <title> --attest           # user-sound upload checks
 dotnet run --project tools/voice-battle-server -c Release      # online server on port 7777 (data/server.json)
-unity/sync.sh                                                  # build DLLs + copy data into the Unity project
+./setup.sh   (or .\setup.ps1)                                  # new machine: check tools, build, test, sync Unity
+unity/sync.sh                                                  # build DLLs + copy data into the Unity project (Unity's EngineSync also does it on load)
+VB_AUTH=steam VB_STEAM_WEBAPI_KEY=... dotnet run --project tools/voice-battle-server -c Release   # server with Steam login
+docker build -t voice-battle-server .                          # server image (Dockerfile at repo root)
+tools/steam/upload.sh <login> "desc" beta                     # SteamPipe upload of unity/Builds (needs own AppID + VB_DEPOT_*)
 python3 tools/preview/build.py                                 # rebuild docs/preview/roster.html after editing characters/visuals
 ```
 `./build.sh all` (or `.\build.ps1 all`) = restore + build + test + benchmark → `docs/m0-synthetic-results.md`.
@@ -58,6 +63,14 @@ python3 tools/preview/build.py                                 # rebuild docs/pr
 - Taught moves online send slot, player-typed title and length only (their contour stays on the device). A future ranked mode must exclude them and recompute accuracy server-side.
 - Strangers' voice starts muted (GDD §9); keep `mute_strangers_by_default` true.
 - `VoiceBattle.Net` depends on `BattleRules.Core` only. Every server limit lives in `data/server.json`.
+
+## Steam rules
+- Only `SteamBridge.cs` touches Steamworks, and only inside `#if VB_STEAM`; its `#else` stub keeps the same public API so the game builds without the package. `EngineSync` owns the `VB_STEAMWORKS` define.
+- The Steam Web API key is a publisher secret: environment only (`VB_STEAM_WEBAPI_KEY`), never in git, `data/`, the Docker image or logs.
+- `data/steam.json` (`app_id`, `ticket_identity`) must match `data/server.json` (`steam_app_id`, `steam_identity`) — a test enforces it; `unity/steam_appid.txt` holds the same AppID.
+- Steam is never required: every path works with `Available == false`. No Steam networking — our server stays authoritative.
+- Never set a build live on the default branch from a script (`tools/steam/upload.*` refuses).
+- The file lists in `unity/sync.sh`, `unity/sync.ps1` and `EngineSync` (Dlls, DataFiles) must stay identical.
 
 ## Presentation rules
 - Characters are cosmetic only: `CharacterRoster` rejects gameplay-stat keys. Never give a character a gameplay effect.

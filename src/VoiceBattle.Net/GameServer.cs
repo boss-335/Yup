@@ -35,6 +35,11 @@ namespace VoiceBattle.Net
         public string BotLight { get; init; } = "fur_elise_a";
         public string BotHeavy { get; init; } = "ode_to_joy_a";
         public string BotFinisher { get; init; } = "beethoven5_a";
+        /// <summary>"none" (LAN / development) or "steam" (verify Steam tickets; key in VB_STEAM_WEBAPI_KEY).</summary>
+        public string Auth { get; init; } = "none";
+        public uint SteamAppId { get; init; } = 480;
+        /// <summary>The identity string the client passes to GetAuthTicketForWebApi — must match on both sides.</summary>
+        public string SteamIdentity { get; init; } = "voicebattle";
 
         public static ServerConfig Load(string path)
         {
@@ -53,6 +58,10 @@ namespace VoiceBattle.Net
                 VoiceMaxBytes = I("voice_max_bytes", c.VoiceMaxBytes), VoiceMaxPerSecond = I("voice_max_per_second", c.VoiceMaxPerSecond),
                 BotCharacters = r.TryGetProperty("bot_characters", out var bc) ? bc.EnumerateArray().Select(x => x.GetString() ?? "").Where(x => x.Length > 0).ToArray() : c.BotCharacters,
             };
+            if (r.TryGetProperty("auth", out var au) && au.ValueKind == JsonValueKind.String) c = c with { Auth = au.GetString()! };
+            if (r.TryGetProperty("steam_app_id", out var ai) && ai.ValueKind == JsonValueKind.Number) c = c with { SteamAppId = ai.GetUInt32() };
+            if (r.TryGetProperty("steam_identity", out var si) && si.ValueKind == JsonValueKind.String) c = c with { SteamIdentity = si.GetString()! };
+            if (c.Auth != "none" && c.Auth != "steam") throw new FormatException("server.json: auth must be \"none\" or \"steam\"");
             if (r.TryGetProperty("bot_loadout", out var bl))
                 c = c with { BotLight = bl.GetProperty("light").GetString()!, BotHeavy = bl.GetProperty("heavy").GetString()!, BotFinisher = bl.GetProperty("finisher").GetString()! };
             if (c.SnapshotHz <= 0 || c.SnapshotHz > 60) throw new FormatException("server.json: snapshot_hz must be 1..60");
@@ -85,6 +94,8 @@ namespace VoiceBattle.Net
             public int BadMessages;
             public long VoiceWindowStart; public int VoiceInWindow;
             public ushort VoiceIndex;
+            public string? SteamId;
+            public bool Authenticating;
         }
 
         private sealed class Room
@@ -112,9 +123,13 @@ namespace VoiceBattle.Net
         private readonly Dictionary<string, Room> _rooms = new();
         private int _nextPlayer = 1;
 
-        public GameServer(ServerConfig cfg, BattleConfig battle, ModeCatalog modes, IEnumerable<Pack> packs, Func<long> nowMs, int seed = 0)
+        private readonly IAuthenticator _auth;
+
+        public GameServer(ServerConfig cfg, BattleConfig battle, ModeCatalog modes, IEnumerable<Pack> packs, Func<long> nowMs, int seed = 0,
+                          IAuthenticator? auth = null)
         {
             _cfg = cfg; _battle = battle; _modes = modes; _now = nowMs;
+            _auth = auth ?? new NoAuthenticator();
             _rng = seed == 0 ? new Random() : new Random(seed);
             _snippets = packs.SelectMany(p => p.Snippets).ToDictionary(s => s.Id);
         }
@@ -165,9 +180,12 @@ namespace VoiceBattle.Net
             if (msg is Hello h)
             {
                 if (h.Protocol != Wire.ProtocolVersion) { Send(p, new Error("protocol", $"server speaks protocol {Wire.ProtocolVersion}")); p.Conn?.Close("protocol"); return; }
-                p.Name = CleanName(h.Name);
-                p.Character = CleanId(h.Character, "abu_sawt");
-                Send(p, new Welcome(p.Id, _now(), Wire.ProtocolVersion));
+                if (p.Name.Length > 0 || p.Authenticating) { Send(p, new Error("already_hello", "already signed in")); return; }
+                p.Authenticating = true;
+                // Validation may call Steam over HTTP: run it outside the lock, finish under it.
+                // ExecuteSynchronously: an already-finished check (no auth) completes right here, in order.
+                _auth.Validate(h).ContinueWith(t => CompleteHello(p, h, t.Status == System.Threading.Tasks.TaskStatus.RanToCompletion ? t.Result : AuthResult.Refused("auth_error")),
+                                               System.Threading.Tasks.TaskContinuationOptions.ExecuteSynchronously);
                 return;
             }
             if (p.Name.Length == 0) { Send(p, new Error("hello_first", "send hello first")); return; }
@@ -242,6 +260,27 @@ namespace VoiceBattle.Net
                     break;
                 }
                 default: throw new ArgumentException("unexpected message");
+            }
+        }
+
+        private void CompleteHello(Player p, Hello h, AuthResult auth)
+        {
+            lock (this)
+            {
+                p.Authenticating = false;
+                if (p.Conn == null || !_byConn.ContainsKey(p.Conn.Id)) return; // left while we were checking
+                if (!auth.Ok) { Send(p, new Error("auth", auth.Reason ?? "not allowed")); p.Conn.Close("auth"); return; }
+                if (auth.SteamId != null)
+                {
+                    // One session per Steam account: a new login replaces the old one.
+                    var old = _byConn.Values.FirstOrDefault(x => x != p && x.SteamId == auth.SteamId);
+                    if (old?.Conn != null) { Send(old, new Error("replaced", "signed in somewhere else")); old.Conn.Close("replaced"); }
+                }
+                p.SteamId = auth.SteamId;
+                p.Name = CleanName(h.Name);
+                if (p.Name.Length == 0) p.Name = "Player";
+                p.Character = CleanId(h.Character, "abu_sawt");
+                Send(p, new Welcome(p.Id, _now(), Wire.ProtocolVersion, p.SteamId));
             }
         }
 
@@ -483,7 +522,7 @@ namespace VoiceBattle.Net
         // ---------- sending ----------
         private void BroadcastRoom(Room room)
         {
-            var players = room.Players.Select(x => new PlayerInfo(x.Id, x.Name, x.Character, x.Team, x.Ready, x.Bot, x.Id == room.HostId, x.Moves, x.VoiceIndex)).ToList();
+            var players = room.Players.Select(x => new PlayerInfo(x.Id, x.Name, x.Character, x.Team, x.Ready, x.Bot, x.Id == room.HostId, x.Moves, x.VoiceIndex, x.SteamId)).ToList();
             Broadcast(room, new RoomState(room.Code, room.Mode.Id, room.Phase, players, room.Mode.MinPlayers, room.Mode.MaxPlayers,
                                           room.Phase == "countdown" ? room.PhaseUntil : (long?)null));
         }

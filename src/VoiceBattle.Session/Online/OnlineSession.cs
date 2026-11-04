@@ -49,7 +49,7 @@ namespace VoiceBattle.Session.Online
         public long ServerMs => _net.ServerMs;
         public bool Connected => _net.Connected && _net.Disconnected == null;
 
-        public Task ConnectAsync(string host, int port) => _net.ConnectAsync(host, port, Name, Character);
+        public Task ConnectAsync(string host, int port, string? steamTicket = null) => _net.ConnectAsync(host, port, Name, Character, steamTicket);
 
         public void CreateRoom(string mode, bool bots = false) { _withStrangers = false; _net.Send(new CreateRoom(mode, bots, false)); }
         public void JoinRoom(string code) { _withStrangers = false; _net.Send(new JoinRoom(code)); }
@@ -131,6 +131,8 @@ namespace VoiceBattle.Session.Online
         }
 
         private bool _withStrangers;
+        /// <summary>True after a quick match (strangers); false for rooms created or joined by code.</summary>
+        public bool QuickMatched => _withStrangers;
 
         private void OnMatchBegan(MatchStarted m)
         {

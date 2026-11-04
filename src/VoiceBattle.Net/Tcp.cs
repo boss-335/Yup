@@ -126,12 +126,13 @@ namespace VoiceBattle.Net
         public long ServerMs => LocalMs + _offsetMs;
         public long RttMs => _bestRtt == long.MaxValue ? -1 : _bestRtt;
 
-        public async Task ConnectAsync(string host, int port, string name, string character)
+        /// <param name="steamTicket">Hex Steam auth ticket (GetAuthTicketForWebApi), for servers with Steam login.</param>
+        public async Task ConnectAsync(string host, int port, string name, string character, string? steamTicket = null)
         {
             await _tcp.ConnectAsync(host, port).ConfigureAwait(false);
             _stream = _tcp.GetStream();
             _ = Task.Run(ReadLoop);
-            Send(new Hello(Wire.ProtocolVersion, name, character));
+            Send(new Hello(Wire.ProtocolVersion, name, character, steamTicket));
             Send(new Ping(LocalMs));
         }
 

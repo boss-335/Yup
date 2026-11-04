@@ -12,8 +12,9 @@ mkdir -p "$out" "$data/Packs" "$data/midi"
 for dll in VoiceMatch.Core VoiceBattle.Session VoiceBattle.Sounds VoiceBattle.Net BattleRules.Core NVorbis NLayer Concentus System.Text.Json System.Text.Encodings.Web Microsoft.Bcl.AsyncInterfaces; do
   cp "$tmp/$dll.dll" "$out/"
 done
-cp data/match_config.json data/moves.json data/battle.json data/characters.json data/visuals.json data/sounds.json data/modes.json data/voice.json "$data/"
+cp data/match_config.json data/moves.json data/battle.json data/characters.json data/visuals.json data/sounds.json data/modes.json data/voice.json data/steam.json "$data/"
 cp data/Packs/*.json "$data/Packs/"
 cp data/midi/*.mid "$data/midi/"
 rm -rf "$tmp"
+date -u +%Y-%m-%dT%H:%M:%SZ > "$out/.sync-stamp"   # Unity's EngineSync skips its own rebuild when nothing is newer
 echo "Synced DLLs to $out and data to $data"

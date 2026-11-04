@@ -1,10 +1,21 @@
-# Voice Battle — محرّك مطابقة الصوت (M0)
+# Voice Battle
 
 لعبة قتال جماعية: **غنّي عشان تضرب**. وثيقة التصميم الكاملة: [`docs/voice-battle-gdd.md`](docs/voice-battle-gdd.md).
 المراحل المنجزة: **M0 — محرّك المطابقة** ([تقرير](docs/m0-report.md)) و **M1 — القتال المحلي** ([تقرير](docs/m1-report.md)): مكتبات C# مستقلة عن Unity + أداة سطر أوامر + اختبارات + سكربتات Unity.
-اللعب أونلاين (فرق، ساحة المعركة): [`docs/online.md`](docs/online.md) · حركاتي وأصواتي: [`docs/my-moves-and-sounds.md`](docs/my-moves-and-sounds.md) · الشكل البصري والشخصيات: [`docs/art-direction.md`](docs/art-direction.md) — ومعاينة تفاعلية تفتحها بأي متصفح: [`docs/preview/roster.html`](docs/preview/roster.html).
+اللعب أونلاين (فرق، ساحة المعركة): [`docs/online.md`](docs/online.md) · Steam: [`docs/steam.md`](docs/steam.md) · حركاتي وأصواتي: [`docs/my-moves-and-sounds.md`](docs/my-moves-and-sounds.md) · الشكل البصري والشخصيات: [`docs/art-direction.md`](docs/art-direction.md) — ومعاينة تفاعلية تفتحها بأي متصفح: [`docs/preview/roster.html`](docs/preview/roster.html).
 
 > كل شي يشتغل **محلياً على جهازك بدون إنترنت** بعد أول `restore` (يحمّل حزم NuGet مرة وحدة).
+
+### البداية السريعة (نقل المشروع لجهازك)
+1. ثبّت **.NET SDK 8** و **git** و **Unity Hub** + **Unity 2022.3 LTS** (أو أحدث). (اختياري: عميل **Steam**.)
+2. انسخ المستودع (أو فك الـ zip) وشغّل من مجلده:
+   - Windows: `.\setup.ps1`
+   - macOS / Linux: `./setup.sh`
+
+   يتأكد من الأدوات، يبني ويختبر كل شي، ويجهّز مشروع Unity.
+3. Unity Hub → **Add project from disk** → اختر مجلد **`unity/`**.
+4. في Unity: القائمة **Voice Battle → Create main scene** ثم ▶ **Play** → القائمة الرئيسية (تدريب / أونلاين).
+5. أونلاين مع صديق: `dotnet run --project tools/voice-battle-server -c Release` واتصلوا على IP جهازك، منفذ 7777.
 
 ---
 
@@ -16,7 +27,8 @@
 | **.NET SDK 8** (أو أحدث) | https://dotnet.microsoft.com/download/dotnet/8.0 — Windows / macOS / Linux |
 | Git | لنسخ المستودع |
 | (اختياري) VS Code + إضافة C# Dev Kit، أو Visual Studio 2022، أو JetBrains Rider | للتطوير |
-| (لاحقاً، M1) Unity 2022.3 LTS أو أحدث | للمشهد والمايك |
+| Unity 2022.3 LTS أو أحدث (عبر Unity Hub) | اللعبة نفسها — مجلد `unity/` مشروع جاهز |
+| (اختياري) عميل Steam | الاسم وتسجيل الدخول ودعوة الأصدقاء (`docs/steam.md`) |
 
 تأكد من التثبيت:
 ```bash
@@ -97,7 +109,10 @@ src/VoiceBattle.Session/     يربط المكتبتين: تقطيع الماي�
 src/VoiceBattle.Sounds/      أصوات اللاعبين (§5.4): الرفع والفحوصات، المكتبة، البلاغات، الإزالة
 src/VoiceBattle.Net/         اللعب أونلاين: البروتوكول، السيرفر الحاكم (غرف، لعب سريع، بوتات)، TCP
 tools/voice-battle-server/   برنامج السيرفر
-unity/                       سكربتات Unity (انظر unity/README.md)
+unity/                       مشروع Unity جاهز: السكربتات، أدوات المحرر، الحزم (انظر unity/README.md)
+tools/steam/                 رفع النسخ على Steam (SteamPipe)
+Dockerfile                   صورة السيرفر لـ VPS
+setup.sh / setup.ps1         أول تشغيل على جهاز جديد
 tools/matcher-lab/           أداة سطر الأوامر
 data/match_config.json       كل العتبات والأوزان (لا شيء ثابت في الكود)
 data/moves.json, battle.json إعدادات الحركات والمباراة والبوت
@@ -105,6 +120,7 @@ data/characters.json         الشخصيات (شكل فقط، بدون قوة)
 data/visuals.json            ألوان المسرح وتوقيتات المؤثرات
 data/modes.json              الأوضاع: مبارزة، فرق ٢×٢ و٤×٤، الكل ضد الكل، ساحة المعركة
 data/server.json, voice.json إعدادات السيرفر والدردشة الصوتية
+data/steam.json              رقم اللعبة في Steam وهوية تذكرة الدخول
 tools/preview/               يبني docs/preview/roster.html من ملفات data
 data/melodies/*.json         ألحان الملك العام مكتوبة يدوياً (المصدر)
 data/midi/*.mid              المراجع المولّدة منها
@@ -133,8 +149,9 @@ legacy/                      مشروع قديم غير مستخدم
 
 ---
 
-## 5. Unity (M1)
-الخطوات كاملة في [`unity/README.md`](unity/README.md): مشروع Unity جديد داخل `unity/` ← `unity/sync.sh` (أو `.\unity\sync.ps1`) ← أضف `TrainingMatch` و `TrainingHud` لكائن في المشهد ← Play.
+## 5. Unity و Steam
+مجلد `unity/` **مشروع Unity كامل** — افتحه مباشرة من Unity Hub. أداة المحرر تبني المحرّك وتنسخ `data/` تلقائياً أول ما يفتح (ولما يتغيّر `src/` أو `data/`)، وقائمة **Voice Battle** فيها: مزامنة، إنشاء المشهد، بناء Windows/macOS/Linux، تشغيل سيرفر محلي.
+التفاصيل: [`unity/README.md`](unity/README.md) · Steam والسيرفر والرفع للمتجر: [`docs/steam.md`](docs/steam.md).
 
 ## 6. الإكمال مع Claude Code على جهازك
 ثبّت Claude Code محلياً وافتحه داخل مجلد المستودع — ملف [`CLAUDE.md`](CLAUDE.md) يشرح له المشروع ووين وقفنا وقواعد العمل.

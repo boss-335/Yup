@@ -1,0 +1,14 @@
+// SteamPipe build script — filled in by tools/steam/upload.sh / upload.ps1 (do not edit the generated copy).
+// The AppID comes from data/steam.json, depot ids from VB_DEPOT_WINDOWS / VB_DEPOT_MACOS / VB_DEPOT_LINUX.
+"AppBuild"
+{
+	"AppID" "@APP_ID@"
+	"Desc" "@DESC@"
+	"ContentRoot" "@CONTENT_ROOT@"
+	"BuildOutput" "@BUILD_OUTPUT@"
+	"SetLive" "@SET_LIVE@"
+	"Depots"
+	{
+@DEPOTS@
+	}
+}

@@ -1,6 +1,9 @@
 {
   "_comment": "Online server tunables (VoiceBattle.Net.GameServer).",
   "port": 7777,
+  "auth": "none",
+  "steam_app_id": 480,
+  "steam_identity": "voicebattle",
   "snapshot_hz": 10,
   "countdown_ms": 5000,
   "quickmatch_wait_ms": 15000,

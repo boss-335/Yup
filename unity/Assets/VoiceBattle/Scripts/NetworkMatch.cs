@@ -32,6 +32,11 @@ namespace VoiceBattle.UnityLayer
         public bool arabic = true;
         [Tooltip("Hear the other players")]
         public bool voiceChat = true;
+        [Tooltip("Use Steam for the name, login ticket and friend invites (works without Steam too)")]
+        public bool useSteam = true;
+
+        public SteamBridge? Steam { get; private set; }
+        private JoinInfo? _pendingJoin;
 
         public GameData? Data { get; private set; }
         public OnlineSession? Session { get; private set; }
@@ -42,6 +47,7 @@ namespace VoiceBattle.UnityLayer
         public TakeAnalysis? LastTake { get; private set; }
 
         private readonly ConcurrentQueue<TakeAnalysis> _done = new();
+        private string? _partyRoom;
         private Task? _connecting;
 
         private void Start()
@@ -53,11 +59,20 @@ namespace VoiceBattle.UnityLayer
                 foreach (var m in store.All) Data.Use(m); // taught moves work online too (only slot, name and length are sent)
             }
             catch (Exception ex) { Error = "Data load failed (run unity/sync.sh first?): " + ex.Message; Debug.LogError(ex); return; }
+            if (useSteam)
+            {
+                Steam = SteamBridge.Get();   // one per run, survives scene reloads
+                if (Steam.Available && (playerName == "Player" || string.IsNullOrEmpty(playerName))) playerName = Steam.PersonaName;
+                Steam.JoinRequested += OnSteamJoin;
+            }
             Mic = GetComponent<MicCapture>();
             Mic.Begin(Data.Match.Contour, Data.Session);
             Mic.TakeCaptured += OnTake;
             Mic.RawSamples += (s, rate) => { if (voiceChat) Session?.PushMic(s, rate); };
             StartVoicePlayback();
+            // An invite accepted in the menu, or the launch command line ("+vb_server h:p +vb_room CODE").
+            var startup = Steam != null ? Steam.TakePendingJoin() : SteamConfig.JoinFromCommandLine(Environment.GetCommandLineArgs());
+            if (startup != null) OnSteamJoin(startup);
         }
 
         public void Connect()
@@ -70,11 +85,19 @@ namespace VoiceBattle.UnityLayer
                 Session = new OnlineSession(Data, Data.Voice, loadout, playerName, character);
                 Session.State.MatchBegan += BuildStage;
                 Status = $"connecting to {serverHost}:{serverPort}…";
-                _connecting = Session.ConnectAsync(serverHost, serverPort).ContinueWith(t =>
+                var session = Session;
+                void Go(string? ticket)
                 {
-                    Status = t.Exception != null ? "could not connect: " + t.Exception.GetBaseException().Message : "connected";
-                    _connecting = null;
-                });
+                    _connecting = session.ConnectAsync(serverHost, serverPort, ticket).ContinueWith(t =>
+                    {
+                        Status = t.Exception != null ? "could not connect: " + t.Exception.GetBaseException().Message
+                                                     : ticket != null ? "connected (Steam)" : "connected";
+                        _connecting = null;
+                    });
+                }
+                // With Steam the server can verify who we are; without it (or on a LAN server) we connect plainly.
+                if (Steam != null && Steam.Available) { _connecting = Task.CompletedTask; Steam.RequestTicket(t => { _connecting = null; Go(t); }); }
+                else Go(null);
             }
             catch (ArgumentException ex) { Error = ex.Message; }
         }
@@ -105,6 +128,18 @@ namespace VoiceBattle.UnityLayer
             if (s == null) return;
             s.Poll();
             if (s.Net.Disconnected != null) Status = "disconnected: " + s.Net.Disconnected;
+            if (_pendingJoin != null && s.State.PlayerId != null)
+            {
+                if (s.State.Room?.Code != _pendingJoin.RoomCode) s.JoinRoom(_pendingJoin.RoomCode);
+                _pendingJoin = null;
+            }
+            // A private room becomes a Steam friends lobby so friends can join from the friends list.
+            if (Steam != null && Steam.Available && s.State.Room is { } room && !s.QuickMatched && _partyRoom != room.Code)
+            {
+                Steam.SetParty(new JoinInfo(serverHost, serverPort, room.Code), room.MaxPlayers);
+                _partyRoom = room.Code;
+            }
+            if (Steam != null && s.State.Room == null && _partyRoom != null) { Steam.LeaveParty(); _partyRoom = null; }
             while (_done.TryDequeue(out var a)) { LastTake = a; s.Send(a); }
             if (Stage == null || s.State.Match == null) return;
 
@@ -137,8 +172,23 @@ namespace VoiceBattle.UnityLayer
             src.clip = clip; src.loop = true; src.Play();
         }
 
+        /// <summary>A Steam friend invited us (or we were started from an invite): connect to their server, join their room.</summary>
+        private void OnSteamJoin(JoinInfo info)
+        {
+            bool otherServer = serverHost != info.Host || serverPort != info.Port;
+            serverHost = info.Host; serverPort = info.Port;
+            _pendingJoin = info;
+            if (Session == null || !Session.Connected || otherServer) Connect();
+        }
+
+        public void InviteSteamFriends() => Steam?.InviteFriends();
+
         public void ToggleMute(int voiceIndex) { if (Session != null) Session.Voice.Mute(voiceIndex, !Session.Voice.IsMuted(voiceIndex)); }
 
-        private void OnDestroy() => Session?.Dispose();
+        private void OnDestroy()
+        {
+            if (Steam != null) { Steam.JoinRequested -= OnSteamJoin; Steam.LeaveParty(); }
+            Session?.Dispose();
+        }
     }
 }

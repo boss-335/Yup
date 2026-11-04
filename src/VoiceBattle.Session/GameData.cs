@@ -64,6 +64,10 @@ namespace VoiceBattle.Session
         public Online.VoiceConfig Voice => _voice ??= Online.VoiceConfig.Load(Path.Combine(DataDir, "voice.json"));
         private Online.VoiceConfig? _voice;
 
+        /// <summary>data/steam.json — AppID and login-ticket identity (defaults when the file is absent).</summary>
+        public Online.SteamConfig Steam => _steam ??= Online.SteamConfig.Load(Path.Combine(DataDir, "steam.json"));
+        private Online.SteamConfig? _steam;
+
         /// <summary>data/characters.json — cosmetic roster.</summary>
         public CharacterRoster Characters { get; }
 

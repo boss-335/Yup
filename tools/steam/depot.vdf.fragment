@@ -1,0 +1,14 @@
+		"@DEPOT_ID@"
+		{
+			"FileMapping"
+			{
+				"LocalPath" "@FOLDER@/*"
+				"DepotPath" "."
+				"recursive" "1"
+			}
+			// Steam launches the game itself; the dev-only AppID file and debug symbols are not shipped.
+			"FileExclusion" "steam_appid.txt"
+			"FileExclusion" "*.pdb"
+			"FileExclusion" "*_BurstDebugInformation_DoNotShip"
+			"FileExclusion" "*_BackUpThisFolder_ButDontShipItWithYourGame"
+		}

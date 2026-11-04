@@ -241,12 +241,14 @@ namespace VoiceBattle.UnityLayer
     /// <summary>Works with either the legacy Input Manager or the Input System package.</summary>
     internal static class Keys
     {
-#if ENABLE_INPUT_SYSTEM
+#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
         public static bool PushToSingDown() => UnityEngine.InputSystem.Keyboard.current?.spaceKey.wasPressedThisFrame ?? false;
         public static bool PushToSingUp() => UnityEngine.InputSystem.Keyboard.current?.spaceKey.wasReleasedThisFrame ?? false;
+        public static bool Escape() => UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame ?? false;
 #else
         public static bool PushToSingDown() => Input.GetKeyDown(KeyCode.Space);
         public static bool PushToSingUp() => Input.GetKeyUp(KeyCode.Space);
+        public static bool Escape() => Input.GetKeyDown(KeyCode.Escape);
 #endif
     }
 }

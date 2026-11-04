@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+unity/
+legacy/
+recordings/
+docs/
+**/*.wav
+**/*.mp3
+**/*.ogg
+**/*.flac
+.git/

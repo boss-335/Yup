@@ -8,7 +8,11 @@ using System.Text.Json.Serialization;
 namespace VoiceBattle.Net
 {
     // ======================= client → server =======================
-    public sealed record Hello(int Protocol, string Name, string Character);
+    /// <summary>
+    /// First message. <see cref="SteamTicket"/> = hex of a Steam auth ticket from
+    /// SteamUser.GetAuthTicketForWebApi(identity); required when the server runs with "auth": "steam".
+    /// </summary>
+    public sealed record Hello(int Protocol, string Name, string Character, string? SteamTicket = null);
     public sealed record CreateRoom(string Mode, bool Bots = false, bool Public = false);
     public sealed record JoinRoom(string Code);
     public sealed record QuickMatch(string Mode);
@@ -29,10 +33,11 @@ namespace VoiceBattle.Net
     public sealed record Ping(long ClientMs);
 
     // ======================= server → client =======================
-    public sealed record Welcome(string PlayerId, long ServerMs, int Protocol);
+    /// <summary><see cref="SteamId"/> is set when the server verified the player's Steam ticket.</summary>
+    public sealed record Welcome(string PlayerId, long ServerMs, int Protocol, string? SteamId = null);
     public sealed record Error(string Code, string Message);
     /// <summary><see cref="Voice"/> = the sender index stamped on this player's relayed voice packets.</summary>
-    public sealed record PlayerInfo(string Id, string Name, string Character, string Team, bool Ready, bool Bot, bool Host, List<MoveSpec> Moves, int Voice);
+    public sealed record PlayerInfo(string Id, string Name, string Character, string Team, bool Ready, bool Bot, bool Host, List<MoveSpec> Moves, int Voice, string? SteamId = null);
     public sealed record RoomState(string Code, string Mode, string Phase, List<PlayerInfo> Players, int MinPlayers, int MaxPlayers, long? StartsAtMs);
     public sealed record FighterInfo(string Id, string Name, string Character, string Team, bool Bot, List<MoveSpec> Moves, int Voice);
     public sealed record MatchStarted(long ServerMs, int DurationMs, string Mode, List<FighterInfo> Fighters);

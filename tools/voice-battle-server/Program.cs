@@ -2,7 +2,7 @@ using System.Net;
 using BattleRules.Core;
 using VoiceBattle.Net;
 
-// voice-battle-server [--port 7777] [--data path/to/data]
+// voice-battle-server [--port 7777] [--data path/to/data]   env: VB_AUTH=steam|none, VB_STEAM_WEBAPI_KEY, VB_STEAM_APP_ID
 // Dedicated online server: rooms, quick match (duel, 2v2, 4v4, free-for-all, battle ground), bots, voice relay.
 string? dataDir = null;
 int? port = null;
@@ -21,14 +21,34 @@ var modes = ModeCatalog.Load(Path.Combine(dataDir, "modes.json"));
 var (packs, rejected) = PackLoader.LoadAll(Path.Combine(dataDir, "Packs"));
 foreach (var r in rejected) Console.Error.WriteLine("pack rejected: " + r.Message);
 
+// Steam login: "auth": "steam" in server.json + the publisher Web API key in the environment (never in git).
+// VB_AUTH=steam|none overrides server.json (Docker / VPS without editing data).
+string? envAuth = Environment.GetEnvironmentVariable("VB_AUTH");
+if (!string.IsNullOrWhiteSpace(envAuth))
+{
+    if (envAuth != "steam" && envAuth != "none") { Console.Error.WriteLine("VB_AUTH must be \"steam\" or \"none\""); return 2; }
+    cfg = cfg with { Auth = envAuth };
+}
+IAuthenticator auth = new NoAuthenticator();
+if (cfg.Auth == "steam")
+{
+    string? key = Environment.GetEnvironmentVariable("VB_STEAM_WEBAPI_KEY");
+    if (string.IsNullOrWhiteSpace(key)) { Console.Error.WriteLine("auth is \"steam\" but VB_STEAM_WEBAPI_KEY is not set"); return 2; }
+    if (uint.TryParse(Environment.GetEnvironmentVariable("VB_STEAM_APP_ID"), out var envApp)) cfg = cfg with { SteamAppId = envApp };
+    auth = new SteamWebApiAuthenticator(new HttpClient { Timeout = TimeSpan.FromSeconds(8) }, key, cfg.SteamAppId, cfg.SteamIdentity);
+    Console.WriteLine($"Steam login required (app {cfg.SteamAppId})");
+}
+else Console.WriteLine("No login (LAN / development). Set \"auth\": \"steam\" in server.json for public servers.");
+
 var clock = System.Diagnostics.Stopwatch.StartNew();
-var server = new GameServer(cfg, battle, modes, packs, () => clock.ElapsedMilliseconds);
+var server = new GameServer(cfg, battle, modes, packs, () => clock.ElapsedMilliseconds, auth: auth);
 using var host = new TcpServerHost(server, port ?? cfg.Port, IPAddress.Any);
 host.Start();
 Console.WriteLine($"Voice Battle server on port {host.Port} · modes: {string.Join(", ", modes.All.Select(m => m.Id))} · Ctrl+C to stop");
 
 var done = new TaskCompletionSource();
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; done.TrySetResult(); };
+using var sigterm = System.Runtime.InteropServices.PosixSignalRegistration.Create(System.Runtime.InteropServices.PosixSignal.SIGTERM, c => { c.Cancel = true; done.TrySetResult(); });   // docker stop
 var status = Task.Run(async () =>
 {
     while (!done.Task.IsCompleted)

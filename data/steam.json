@@ -1,0 +1,7 @@
+{
+  "_comment": "Steam client settings (docs/steam.md). 480 = Valve's Spacewar test app; replace with Voice Battle's own AppID once the Steamworks app exists. Must match steam_app_id / steam_identity in data/server.json.",
+  "app_id": 480,
+  "ticket_identity": "voicebattle",
+  "relaunch_through_steam": true,
+  "max_party_members": 250
+}

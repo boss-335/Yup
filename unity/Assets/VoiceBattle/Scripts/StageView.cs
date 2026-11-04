@@ -50,13 +50,12 @@ namespace VoiceBattle.UnityLayer
         {
             _vis = vis;
             _font = LoadFont();
-            _cam = Camera.main;
-            if (_cam == null) _cam = new GameObject("Main Camera").AddComponent<Camera>();
+            _cam = SceneBasics.EnsureCamera();   // tagged MainCamera, with the AudioListener (no listener = no sound)
             _cam.orthographic = true;
             _cam.orthographicSize = 4.2f;
             _cam.transform.position = _camHome = new Vector3(0, 3.1f, -10);
             _cam.backgroundColor = CharacterPuppet.C(vis.BackgroundTop);
-            _sfxSource = _cam.gameObject.AddComponent<AudioSource>();
+            _sfxSource = gameObject.AddComponent<AudioSource>();   // on the stage, so it goes away with it
             StartCrowd();
 
             // backdrop
@@ -129,7 +128,7 @@ namespace VoiceBattle.UnityLayer
             var data = SfxSynth.Render(Sfx.Crowd, rate);
             var clip = AudioClip.Create("crowd", data.Length, 1, rate, false);
             clip.SetData(data, 0);
-            var bed = _cam.gameObject.AddComponent<AudioSource>();
+            var bed = gameObject.AddComponent<AudioSource>();   // on the stage: a rematch builds a new stage, the old loop stops
             bed.clip = clip; bed.loop = true; bed.volume = volume * .35f;
             bed.Play();
         }

@@ -30,6 +30,7 @@ namespace VoiceBattle.UnityLayer
             if (_m.Error != null) { GUILayout.Label("ERROR: " + _m.Error, _big); GUILayout.EndArea(); return; }
             var s = _m.Session;
             GUILayout.Label($"Server {_m.serverHost}:{_m.serverPort} — {_m.Status}" + (s != null && s.Net.RttMs >= 0 ? $"   ping {s.Net.RttMs} ms" : ""));
+            if (_m.Steam != null) GUILayout.Label(_m.Steam.Available ? $"Steam: {Ar(_m.Steam.PersonaName)}" : $"Steam: off ({_m.Steam.Problem})");
 
             if (s == null || !s.Connected)
             {
@@ -79,6 +80,7 @@ namespace VoiceBattle.UnityLayer
                 var me = room.Players.FirstOrDefault(p => p.Id == st.PlayerId);
                 if (me != null && GUILayout.Button(me.Ready ? "Not ready" : "Ready")) s.SetReady(!me.Ready);
                 if (st.IsHost && GUILayout.Button("Start match")) s.StartMatch();
+                if (_m.Steam != null && _m.Steam.Available && _m.Steam.InParty && GUILayout.Button("Invite Steam friends")) _m.InviteSteamFriends();
                 if (GUILayout.Button("Leave")) s.Leave();
                 GUILayout.EndHorizontal();
                 GUILayout.EndArea();
