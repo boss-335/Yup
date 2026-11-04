@@ -116,8 +116,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1
       <button id="bSing" type="button" aria-pressed="false">غنِّ (الفم)</button>
       <button id="bDemo" type="button">عرض تلقائي</button>
       <button id="bReset" type="button">من جديد</button>
+      <button id="bSound" type="button" aria-pressed="true">🔊 الصوت</button>
     </div>
-    <p class="readout" id="readout" aria-live="polite">الضرر = الأساس × الجودة^1.5، والجودة = (الدقة − 0.55) ÷ 0.45</p>
+    <p class="readout" id="readout" aria-live="polite">اضغط أي ضربة لتسمع صوتها. الضرر = الأساس × الجودة^1.5، والجودة = (الدقة − 0.55) ÷ 0.45</p>
   </section>
 
   <section aria-labelledby="castTitle">
@@ -258,6 +259,48 @@ function idleOffset(ch, t) {
   return { x: 0, y: 0, r: 0 };
 }
 
+
+/* ---------- sound: port of src/VoiceBattle.Session/Presentation/SfxSynth.cs ---------- */
+let AC = null, soundOn = true;
+const sfxCache = {};
+function audio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { soundOn = false; } } if (AC && AC.state === "suspended") AC.resume(); return AC; }
+function rngOf(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function osc(w, ph) { const p = ph - Math.floor(ph); return w === "sine" ? Math.sin(2 * Math.PI * p) : w === "tri" ? 4 * Math.abs(p - .5) - 1 : w === "saw" ? 2 * p - 1 : (p < .5 ? 1 : -1); }
+function sweep(sr, sec, f0, f1, amp, w, wob = 0) { const n = sec * sr | 0, y = new Float32Array(n); let ph = 0; for (let i = 0; i < n; i++) { const t = i / n; const f = f0 * Math.pow(f1 / f0, t) * (wob ? 1 + .06 * Math.sin(2 * Math.PI * wob * i / sr) : 1); ph += f / sr; y[i] = amp * Math.min(1, i / (.005 * sr)) * Math.exp(-3.5 * t) * osc(w, ph); } return y; }
+function notes(sr, midi, step, each, amp, w, bell = false) { const n = (step * (midi.length - 1) + each) * sr | 0, y = new Float32Array(n); midi.forEach((m, k) => { const hz = 440 * Math.pow(2, (m - 69) / 12), st = k * step * sr | 0, len = each * sr | 0; for (let i = 0; i < len && st + i < n; i++) { const t = i / sr; y[st + i] += amp * Math.min(1, i / (.004 * sr)) * Math.exp(-(bell ? 7 : 4) * t / each) * (osc(w, hz * t) + (bell ? .4 * Math.sin(2 * Math.PI * hz * 2.76 * t) : 0)); } }); return y; }
+function noise(sr, sec, r, lo, hi, amp, fadeIn = 0) { const n = sec * sr | 0, y = new Float32Array(n); let lp = 0, hp = 0, pv = 0; const aL = 1 - Math.exp(-2 * Math.PI * hi / sr), aH = Math.exp(-2 * Math.PI * lo / sr); for (let i = 0; i < n; i++) { lp += aL * (r() * 2 - 1 - lp); hp = aH * (hp + lp - pv); pv = lp; y[i] = amp * (fadeIn ? Math.min(1, i / (fadeIn * sr)) : 1) * Math.exp(-4 * i / n) * hp * 2; } return y; }
+function cheer(sr, sec, r, amp = .35) { const n = sec * sr | 0, y = new Float32Array(n); let lp = 0, hp = 0, pv = 0; const aL = 1 - Math.exp(-2 * Math.PI * 3000 / sr), aH = Math.exp(-2 * Math.PI * 400 / sr); const ph = [], rt = []; for (let k = 0; k < 8; k++) { ph.push(r() * 6); rt.push(2 + r() * 5); } for (let i = 0; i < n; i++) { lp += aL * (r() * 2 - 1 - lp); hp = aH * (hp + lp - pv); pv = lp; let sw = 0; for (let k = 0; k < 8; k++) sw += .5 + .5 * Math.sin(ph[k] + 2 * Math.PI * rt[k] * i / sr); const t = i / n; y[i] = amp * Math.min(1, t * 6) * (t > .6 ? (1 - t) / .4 : 1) * hp * sw / 4; } return y; }
+function trombone(sr) { const ns = [58, 57, 56, 55], ls = [.28, .28, .28, .8], out = []; ns.forEach((m, k) => { const n = ls[k] * sr | 0, hz = 440 * Math.pow(2, (m - 69) / 12); let ph = 0; for (let i = 0; i < n; i++) { const t = i / n; ph += hz * (k === 3 ? 1 + .03 * Math.sin(2 * Math.PI * 6 * i / sr) : 1) * (1 - .02 * t) / sr; out.push(.8 * Math.min(1, i / (.02 * sr)) * (1 - Math.pow(t, 4)) * (.5 + .5 * Math.sin(Math.PI * Math.min(1, t * 2))) * (osc("saw", ph) * .6 + osc("sq", ph) * .25)); } }); return Float32Array.from(out); }
+function choir(sr, sec) { const n = sec * sr | 0, y = new Float32Array(n); for (const m of [55, 62, 67, 71, 74]) for (let v = 0; v < 3; v++) { const hz = 440 * Math.pow(2, (m - 69 + (v - 1) * .08) / 12); let ph = v * .3; for (let i = 0; i < n; i++) { const t = i / n; ph += hz * (1 + .004 * Math.sin(2 * Math.PI * 5.5 * i / sr + v)) / sr; y[i] += .035 * Math.min(1, t * 5) * (t > .75 ? (1 - t) * 4 : 1) * (osc("saw", ph) * .5 + osc("sine", ph)); } } return y; }
+function drumroll(sr, sec, r) { const n = sec * sr | 0, y = new Float32Array(n), hit = sr / 28 | 0; for (let s = 0; s < n; s += hit) { const amp = .15 + .35 * s / n; for (let i = 0; i < hit && s + i < n; i++) y[s + i] += amp * (r() * 2 - 1) * Math.exp(-i / (.008 * sr)); } return y; }
+function delay(x, sr, sec) { const d = sec * sr | 0, y = new Float32Array(x.length + d); y.set(x, d); return y; }
+function mix(...parts) { const n = Math.max(...parts.map(p => p.length)), y = new Float32Array(n); for (const p of parts) for (let i = 0; i < p.length; i++) y[i] += p[i]; for (let i = 0; i < n; i++) y[i] = Math.max(-1, Math.min(1, y[i])); return y; }
+function render(kind, sr, I = 1, rep = 0) {
+  const r = rngOf(1); I = Math.max(.15, Math.min(1, I));
+  switch (kind) {
+    case "attackLight": return sweep(sr, .14, 700, 1500, .35, "tri");
+    case "attackHeavy": return mix(noise(sr, .32, r, 300, 2500, .3, .12), sweep(sr, .32, 180, 90, .3, "saw"));
+    case "impact": return mix(sweep(sr, .22, 150 + 60 * I, 45, .9 * I, "sine"), noise(sr, .07, r, 200, 4000, .5 * I));
+    case "perfect": return mix(notes(sr, [76, 80, 83, 88], .07, .35, .32, "sine", true));
+    case "sour": return trombone(sr);
+    case "notReady": return mix(sweep(sr, .12, 110, 110, .25, "sq"), sweep(sr, .12, 116, 116, .2, "sq"));
+    case "finisherRep": return notes(sr, [64 + 4 * Math.max(0, rep - 1)], 0, .22, .35, "saw");
+    case "beam": return mix(choir(sr, 1.3));
+    case "ko": return mix(sweep(sr, .7, 90, 30, 1, "sine"), noise(sr, .5, r, 80, 1500, .6), delay(cheer(sr, 1.8, r), sr, .25));
+    case "victory": return mix(notes(sr, [67, 72, 76, 79, 84], .11, .45, .3, "sq"));
+    case "defeat": return mix(notes(sr, [67, 66, 65, 62], .22, .4, .25, "tri"));
+    case "intro": return mix(drumroll(sr, .8, r), delay(notes(sr, [72, 79], .12, .5, .3, "sq"), sr, .8));
+  }
+  return new Float32Array(1);
+}
+function sfx(kind, I = 1, rep = 0) {
+  if (!soundOn) return; const ac = audio(); if (!ac) return;
+  const key = kind + ":" + rep + ":" + Math.round(I * 4);
+  let buf = sfxCache[key];
+  if (!buf) { const d = render(kind, ac.sampleRate, I, rep); buf = ac.createBuffer(1, d.length, ac.sampleRate); buf.copyToChannel(d, 0); sfxCache[key] = buf; }
+  const src = ac.createBufferSource(); src.buffer = buf; const g = ac.createGain(); g.gain.value = .8; src.connect(g).connect(ac.destination); src.start();
+}
+
 /* ---------- cast cards ---------- */
 const cast = document.getElementById("cast");
 const cards = [];
@@ -330,6 +373,7 @@ function attack(slot, a, from = 0) {
   const tier = a >= .9 ? "perfect" : q > 0 ? "hit" : "sour";
   const color = tier === "perfect" ? VIS.tiers.perfect_color : tier === "sour" ? VIS.tiers.sour_color : byId(from ? selR.value : selL.value).palette.secondary;
   A.pose = "attack"; A.poseT = 0; A.mouth = 1;
+  if (slot !== "finisher") sfx(slot === "heavy" ? "attackHeavy" : "attackLight");
   const start = mouthPos(from), end = { x: B.x, y: FLOOR_Y - 1.1 * U };
   if (v.projectile === "notes") for (let k = 0; k < v.count; k++) fx.push({ kind: "note", t: -k * .09, dur: v.travel_ms / 1000, start, end, color, sour: tier === "sour", size: v.size, arc: 60 + k * 25 });
   else if (v.projectile === "wave") fx.push({ kind: "wave", t: 0, dur: v.travel_ms / 1000, start, end, color, sour: tier === "sour", size: v.size });
@@ -337,12 +381,14 @@ function attack(slot, a, from = 0) {
   const land = v.travel_ms / 1000 + (slot === "finisher" ? .15 : 0);
   setTimeout(() => {
     if (tier === "sour") {
-      A.pose = "sour"; A.poseT = 0;
+      A.pose = "sour"; A.poseT = 0; sfx("sour");
       fx.push({ kind: "text", t: 0, dur: 1.1, x: A.x, y: FLOOR_Y - 2.6 * U, text: "نشاز!", color: VIS.tiers.sour_color });
       readout.textContent = `دقة ${a.toFixed(2)} تحت العتبة 0.55: فشل، بدون ضرر، والتبريد ينحسب.`;
       return;
     }
     B.hp = Math.max(0, B.hp - dmg); B.pose = "hit"; B.poseT = 0; B.flash = .9; shake = Math.max(shake, v.shake);
+    sfx("impact", slot === "finisher" ? 1 : dmg / m.base_damage);
+    if (tier === "perfect") sfx("perfect");
     fx.push({ kind: "text", t: 0, dur: 1, x: B.x, y: FLOOR_Y - 2.5 * U, text: "−" + dmg.toFixed(1).replace(".0", ""), color: "#fff" });
     if (tier === "perfect") {
       fx.push({ kind: "burst", t: 0, dur: .8, x: B.x, y: FLOOR_Y - 1.2 * U, color: VIS.tiers.perfect_color });
@@ -358,16 +404,16 @@ function finisher(from = 0) {
   const A = F[from];
   if (A.ko || F[1 - from].ko) return;
   A.rings = 0;
-  for (let r = 1; r <= 4; r++) setTimeout(() => { A.rings = r; A.pose = "sing"; A.poseT = 0; A.mouth = 1; fx.push({ kind: "ring", t: 0, dur: .5, x: A.x, y: FLOOR_Y - 1.1 * U, color: VIS.tiers.perfect_color }); }, (reduced ? 150 : 520) * r);
-  setTimeout(() => { attack("finisher", 1, from); setTimeout(() => A.rings = 0, 600); }, (reduced ? 150 : 520) * 5);
+  for (let r = 1; r <= 4; r++) setTimeout(() => { A.rings = r; A.pose = "sing"; A.poseT = 0; A.mouth = 1; sfx("finisherRep", 1, r); fx.push({ kind: "ring", t: 0, dur: .5, x: A.x, y: FLOOR_Y - 1.1 * U, color: VIS.tiers.perfect_color }); }, (reduced ? 150 : 520) * r);
+  setTimeout(() => { sfx("beam"); attack("finisher", 1, from); setTimeout(() => A.rings = 0, 600); }, (reduced ? 150 : 520) * 5);
 }
 function knockout(winner) {
   const L = F[1 - winner], Wn = F[winner];
   setTimeout(() => {
-    L.ko = 0.0001; L.pose = "ko"; shake = .5;
+    L.ko = 0.0001; L.pose = "ko"; shake = .5; sfx("ko");
     const pal = byId(winner ? selR.value : selL.value).palette;
     for (let k = 0; k < VIS.ko.confetti; k++) fx.push({ kind: "confetti", t: 0, dur: 2.2, x: W / 2 + (Math.random() - .5) * W * .8, y: -20 - Math.random() * 200, vx: (Math.random() - .5) * 80, color: [pal.primary, pal.secondary, pal.accent, VIS.tiers.perfect_color][k % 4], rot: Math.random() * 6 });
-    setTimeout(() => { Wn.pose = "win"; Wn.poseT = 0; say(winner, byId(winner ? selR.value : selL.value).lines.win.ar, 3000); say(1 - winner, byId(winner ? selL.value : selR.value).lines.lose.ar, 3000); }, VIS.ko.fly_ms + 300);
+    setTimeout(() => { Wn.pose = "win"; Wn.poseT = 0; sfx("victory"); say(winner, byId(winner ? selR.value : selL.value).lines.win.ar, 3000); say(1 - winner, byId(winner ? selL.value : selR.value).lines.lose.ar, 3000); }, VIS.ko.fly_ms + 300);
   }, 100);
 }
 
@@ -376,12 +422,14 @@ document.getElementById("bHeavy").onclick = () => attack("heavy", +acc.value);
 document.getElementById("bPerfect").onclick = () => { acc.value = .96; accOut.value = "0.96"; attack("light", .96); };
 document.getElementById("bSour").onclick = () => attack("light", .3);
 document.getElementById("bFinisher").onclick = () => finisher(0);
-document.getElementById("bReset").onclick = reset;
+document.getElementById("bReset").onclick = () => { reset(); sfx("intro"); };
+const bSound = document.getElementById("bSound");
+bSound.onclick = () => { soundOn = !soundOn; bSound.setAttribute("aria-pressed", soundOn); bSound.textContent = soundOn ? "🔊 الصوت" : "🔇 بدون صوت"; if (soundOn) sfx("perfect"); };
 const bSing = document.getElementById("bSing");
 bSing.onclick = () => { singing = !singing; bSing.setAttribute("aria-pressed", singing); F[0].pose = singing ? "sing" : "idle"; };
 document.getElementById("bDemo").onclick = () => {
   if (demoTimer) { clearTimeout(demoTimer); demoTimer = null; }
-  reset();
+  reset(); sfx("intro");
   const script = [[1200, () => attack("light", .86)], [2200, () => attack("heavy", .8, 1)], [2400, () => attack("heavy", .95)], [2200, () => attack("light", .3, 1)],
                   [2000, () => attack("light", .97)], [2200, () => attack("heavy", .9)], [2600, () => finisher(0)]];
   let i = 0; const step = () => { if (i >= script.length) return; const [d, f] = script[i++]; demoTimer = setTimeout(() => { f(); step(); }, d); }; step();

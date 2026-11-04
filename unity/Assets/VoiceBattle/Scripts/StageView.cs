@@ -17,6 +17,9 @@ namespace VoiceBattle.UnityLayer
     public sealed class StageView : MonoBehaviour
     {
         public bool arabic = true;
+        [Tooltip("Procedural sound effects (SfxSynth) on every cue, plus a quiet crowd bed")]
+        public bool sound = true;
+        [Range(0, 1)] public float volume = .8f;
 
         private sealed class Fx
         {
@@ -48,6 +51,8 @@ namespace VoiceBattle.UnityLayer
             _cam.orthographicSize = 4.2f;
             _cam.transform.position = _camHome = new Vector3(0, 3.1f, -10);
             _cam.backgroundColor = CharacterPuppet.C(vis.BackgroundTop);
+            _sfxSource = _cam.gameObject.AddComponent<AudioSource>();
+            StartCrowd();
 
             // backdrop
             var bg = Sprite("backdrop", Shapes.Gradient(CharacterPuppet.C(vis.BackgroundTop), CharacterPuppet.C(vis.BackgroundBottom)), new Vector3(0, 3.1f, 5), -100);
@@ -79,6 +84,39 @@ namespace VoiceBattle.UnityLayer
             }
         }
 
+        private AudioSource? _sfxSource;
+        private readonly Dictionary<string, AudioClip> _clips = new();
+
+        private void PlaySfx(Cue c)
+        {
+            if (!sound) return;
+            var kind = SfxSynth.For(c);
+            if (kind == null) return;
+            float intensity = c.Kind == CueKind.Impact ? Mathf.Round(Mathf.Clamp01(c.Intensity) * 4) / 4 : 1;
+            string key = $"{kind}:{c.Rep}:{intensity:F2}";
+            if (!_clips.TryGetValue(key, out var clip))
+            {
+                int rate = AudioSettings.outputSampleRate;
+                var data = SfxSynth.Render(kind.Value, rate, intensity, c.Rep);
+                clip = AudioClip.Create(key, Mathf.Max(1, data.Length), 1, rate, false);
+                clip.SetData(data, 0);
+                _clips[key] = clip;
+            }
+            _sfxSource?.PlayOneShot(clip, volume);
+        }
+
+        private void StartCrowd()
+        {
+            if (!sound || _cam == null) return;
+            int rate = AudioSettings.outputSampleRate;
+            var data = SfxSynth.Render(Sfx.Crowd, rate);
+            var clip = AudioClip.Create("crowd", data.Length, 1, rate, false);
+            clip.SetData(data, 0);
+            var bed = _cam.gameObject.AddComponent<AudioSource>();
+            bed.clip = clip; bed.loop = true; bed.volume = volume * .35f;
+            bed.Play();
+        }
+
         public void Enqueue(IEnumerable<Cue> cues) { _pending.AddRange(cues); _pending.Sort((a, b) => a.AtMs.CompareTo(b.AtMs)); }
 
         /// <summary>Plays due cues and advances effects. <paramref name="nowMs"/> is the battle clock.</summary>
@@ -107,6 +145,7 @@ namespace VoiceBattle.UnityLayer
 
         private void Play(Cue c)
         {
+            PlaySfx(c);
             _puppets.TryGetValue(c.ActorId, out var a);
             CharacterPuppet? t = c.TargetId != null && _puppets.TryGetValue(c.TargetId, out var tp) ? tp : null;
             switch (c.Kind)

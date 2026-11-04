@@ -221,3 +221,31 @@ public class BattlePresenterTests
         Assert.Empty(s.Presenter.FromTake(TrainingSession.PlayerId, r2, 1000));
     }
 }
+
+public class SfxSynthTests
+{
+    [Fact]
+    public void EveryEffect_IsAudibleBoundedAndShort()
+    {
+        foreach (Sfx kind in Enum.GetValues(typeof(Sfx)))
+        {
+            var y = SfxSynth.Render(kind, 48000, 1f, rep: 2);
+            Assert.True(y.Length > 48000 / 20 && y.Length < 48000 * 4, $"{kind}: {y.Length} samples");
+            Assert.All(y, v => Assert.InRange(v, -1f, 1f));
+            Assert.True(y.Max(Math.Abs) > 0.05f, $"{kind} is silent");
+        }
+    }
+
+    [Fact]
+    public void CuesMapToEffects()
+    {
+        Assert.Equal(Sfx.Sour, SfxSynth.For(new Cue(CueKind.Sour, 0, "a")));
+        Assert.Equal(Sfx.AttackHeavy, SfxSynth.For(new Cue(CueKind.Attack, 0, "a", Slot: MoveSlot.Heavy)));
+        Assert.Equal(Sfx.Knockout, SfxSynth.For(new Cue(CueKind.Knockout, 0, "a")));
+        Assert.Null(SfxSynth.For(new Cue(CueKind.Taunt, 0, "a")));
+    }
+
+    [Fact]
+    public void ImpactGetsLouderWithIntensity()
+        => Assert.True(SfxSynth.Render(Sfx.Impact, 48000, 1f).Max(Math.Abs) > SfxSynth.Render(Sfx.Impact, 48000, .2f).Max(Math.Abs) * 1.5f);
+}
